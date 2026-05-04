@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: schemapilot
+      POSTGRES_USER: schemapilot
+      POSTGRES_PASSWORD: dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schemapilot -d schemapilot"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  drift-simulator:
+    build: ./drift-simulator
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/payload')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://schemapilot:dev@postgres:5432/schemapilot
+      DATABASE_URL_SYNC: postgresql://schemapilot:dev@postgres:5432/schemapilot
+      ADMIN_SECRET: ${ADMIN_SECRET:-dev-secret}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-haiku-4-5-20251001}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:5173}
+      REGISTRY_PATH: /app/config/apis.yaml
+      FETCH_TIMEOUT_SEC: 10
+      RAW_BODY_MAX_BYTES: 262144
+      RAW_RETENTION_PER_ENDPOINT: 10
+    volumes:
+      - ./config:/app/config:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      drift-simulator:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
