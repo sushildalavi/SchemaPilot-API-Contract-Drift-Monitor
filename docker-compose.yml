@@ -5,8 +5,7 @@ services:
       POSTGRES_DB: schemapilot
       POSTGRES_USER: schemapilot
       POSTGRES_PASSWORD: dev
-    ports:
-      - "5432:5432"
+    # 5432 not exposed on host to avoid conflicts with local postgres; use a `psql` exec if needed
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -41,7 +40,7 @@ services:
     volumes:
       - ./config:/app/config:ro
     ports:
-      - "8000:8000"
+      - "8080:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,7 +51,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: http://localhost:8000
+        VITE_API_BASE_URL: http://localhost:8080
     ports:
       - "5173:5173"
     depends_on:

@@ -17,7 +17,7 @@ A developer tool that monitors public JSON APIs over time, infers their schemas,
 ```bash
 cp .env.example .env
 docker compose up -d --build
-curl -X POST http://localhost:8000/api/monitor/run-once \
+curl -X POST http://localhost:8080/api/monitor/run-once \
   -H "X-SCHEMAPILOT-ADMIN-SECRET: dev-secret"
 ```
 
