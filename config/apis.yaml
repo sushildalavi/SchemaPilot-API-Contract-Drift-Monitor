@@ -1,0 +1,29 @@
+apis:
+  - name: GitHub User API
+    provider: github
+    url: https://api.github.com/users/octocat
+    method: GET
+    headers:
+      Accept: application/vnd.github+json
+    is_active: true
+
+  - name: Open-Meteo Forecast API
+    provider: open-meteo
+    url: https://api.open-meteo.com/v1/forecast?latitude=34.05&longitude=-118.24&current_weather=true
+    method: GET
+    headers: {}
+    is_active: true
+
+  - name: JSONPlaceholder User API
+    provider: jsonplaceholder
+    url: https://jsonplaceholder.typicode.com/users/1
+    method: GET
+    headers: {}
+    is_active: true
+
+  - name: Drift Simulator
+    provider: local
+    url: http://drift-simulator:8001/payload
+    method: GET
+    headers: {}
+    is_active: true
