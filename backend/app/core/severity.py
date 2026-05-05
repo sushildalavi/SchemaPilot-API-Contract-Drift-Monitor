@@ -22,6 +22,7 @@ SEVERITY_TABLE: Final[dict[ChangeType, Severity]] = {
     "nullable_removed": "safe",
     "enum_expanded": "risky",
     "enum_narrowed": "safe",
+    "enum_changed": "risky",
     "nested_object_removed": "breaking",
     "array_item_type_changed": "breaking",
 }

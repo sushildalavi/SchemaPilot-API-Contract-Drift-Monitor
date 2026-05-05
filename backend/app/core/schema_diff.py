@@ -49,6 +49,11 @@ def _msg(change_type: str, path: str, **kwargs: Any) -> str:
             f"Field {path} enum narrowed; removed values: "
             f"{sorted(kwargs.get('removed', []))}."
         ),
+        "enum_changed": (
+            f"Field {path} enum values changed; "
+            f"added: {sorted(kwargs.get('added', []))}, "
+            f"removed: {sorted(kwargs.get('removed', []))}."
+        ),
         "nested_object_removed": f"Nested object {path} was removed.",
         "array_item_type_changed": (
             f"Array {path} item type changed from "
@@ -75,7 +80,7 @@ def _pick_change_type(old: SchemaNode, new: SchemaNode) -> Optional[str]:
                 return "enum_expanded"
             if new_set < old_set:
                 return "enum_narrowed"
-            return "type_changed"
+            return "enum_changed"  # overlapping but neither is a pure subset
     if (
         old.type == "array"
         and new.type == "array"
@@ -129,6 +134,9 @@ def diff_schemas(old: list[SchemaNode], new: list[SchemaNode]) -> list[Diff]:
         if change_type == "enum_expanded":
             kwargs["added"] = list(set(new_n.enum_values or []) - set(old_n.enum_values or []))
         if change_type == "enum_narrowed":
+            kwargs["removed"] = list(set(old_n.enum_values or []) - set(new_n.enum_values or []))
+        if change_type == "enum_changed":
+            kwargs["added"]   = list(set(new_n.enum_values or []) - set(old_n.enum_values or []))
             kwargs["removed"] = list(set(old_n.enum_values or []) - set(new_n.enum_values or []))
         if change_type == "array_item_type_changed":
             kwargs["old_type"] = old_n.array_item_type
