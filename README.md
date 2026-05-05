@@ -38,135 +38,211 @@ APIs change without warning. A field gets renamed, a type widens, a reliable val
 
 ## Architecture & Data Flow
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         SCHEDULED TRIGGER                           │
-│                                                                     │
-│   GitHub Actions cron (08:00 UTC daily)                            │
-│   or manual POST /api/monitor/run-once                             │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        MONITOR RUNNER                               │
-│                    workers/monitor_runner.py                        │
-│                                                                     │
-│  1. pg_advisory_lock() → prevents concurrent runs (→ 409)         │
-│  2. Load config/apis.yaml → upsert api_endpoints in DB            │
-│  3. For each active endpoint (concurrent):                         │
-│     a. httpx.GET with 10s timeout                                  │
-│     b. Validate JSON (non-JSON → error snapshot)                   │
-│     c. Normalize (sort keys, truncate >256KB)                      │
-│     d. Infer schema  →  list[SchemaNode]                          │
-│     e. stable_schema_hash() → SHA-256 (excludes example values)   │
-│     f. Fetch prior snapshot from PostgreSQL                        │
-│     g. Insert new snapshot                                         │
-│     h. If hash changed AND prior not error → run diff engine       │
-│     i. Bulk-insert schema_diffs                                    │
-│  4. retention_sweep() → NULL raw bodies beyond latest 10          │
-│  5. Update monitor_run status → success / partial_failure         │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-                ┌──────────────┴──────────────┐
-                │                             │
-                ▼                             ▼
-┌──────────────────────────┐   ┌──────────────────────────────────────┐
-│    SCHEMA INFERENCE      │   │         DIFF ENGINE                  │
-│  core/schema_infer.py    │   │      core/schema_diff.py             │
-│                          │   │                                      │
-│  JSON → list[SchemaNode] │   │  (old_nodes, new_nodes)              │
-│                          │   │       → list[Diff]                   │
-│  • Recurse objects       │   │                                      │
-│  • Union array items     │   │  Rules (response-runtime):           │
-│  • Track nullability     │   │  • removed_field   → breaking        │
-│  • Detect enums ≤10      │   │  • added_field     → safe            │
-│  • Optional via array    │   │  • type_changed    → breaking        │
-│    item coverage         │   │  • int_to_number   → risky           │
-│  • Sort by path (stable) │   │  • nullable_added  → risky           │
-│                          │   │  • enum_expanded   → risky           │
-│  Hash: SHA-256 over      │   │  • enum_narrowed   → safe            │
-│  structural fields only  │   │                                      │
-│  (no example_value)      │   │  Severity: core/severity.py          │
-│                          │   │  Pure lookup table. LLM-free.        │
-└──────────────────────────┘   └──────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         POSTGRESQL                                  │
-│                                                                     │
-│  api_endpoints      → registered URLs from apis.yaml               │
-│  monitor_runs       → one row per scheduled/manual run             │
-│  schema_snapshots   → inferred schema per endpoint per run         │
-│  schema_diffs       → field-level changes, severity classified     │
-│  changelogs         → LLM or template text, cached by diff hash    │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                          FASTAPI                                    │
-│                                                                     │
-│  GET  /health                    → DB ping                          │
-│  GET  /api/endpoints             → list all monitored endpoints    │
-│  GET  /api/endpoints/:id         → endpoint + latest snapshot       │
-│  GET  /api/endpoints/:id/diffs   → field-level diffs               │
-│  GET  /api/endpoints/:id/snapshots → snapshot timeline             │
-│  GET  /api/diffs/recent          → cross-endpoint diff feed        │
-│  GET  /api/monitor-runs          → run history                     │
-│  POST /api/monitor/run-once      → trigger (admin secret required) │
-│  POST /api/changelogs/generate   → AI changelog (admin required)   │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                       REACT DASHBOARD                               │
-│                                                                     │
-│  / (Overview)           → hero + metrics + endpoints + chart       │
-│  /endpoints/:id         → diffs tab, timeline, schema, changelog   │
-│  /diffs                 → cross-endpoint diff history + filters     │
-│  ⌘K                     → command palette (search + navigate)      │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A([GitHub Actions Cron\n08:00 UTC daily]) -->|POST /api/monitor/run-once| B
+
+    B[Monitor Runner\nworkers/monitor_runner.py]
+    B --> C{pg_advisory_lock\nacquired?}
+    C -- No --> D([Return 409\nAlready Running])
+    C -- Yes --> E[Load apis.yaml\nUpsert api_endpoints]
+    E --> F[Fetch each endpoint\nhttpx async · 10s timeout]
+
+    F --> G{Valid JSON?}
+    G -- No --> H[(Store error\nsnapshot)]
+    G -- Yes --> I[Normalize\nsort keys · truncate 256KB]
+    I --> J[schema_infer.py\nJSON → list of SchemaNode]
+    J --> K[canonical.py\nSHA-256 hash\nexclude example_value]
+    K --> L{Hash changed\nvs prior?}
+    L -- Same --> M[(Store snapshot\nskip diff)]
+    L -- Changed --> N[schema_diff.py\nold vs new nodes]
+    N --> O[severity.py\nchange_type → severity\npure lookup table]
+    O --> P[(Store schema_diffs\nin PostgreSQL)]
+
+    P --> Q[retention_sweep\nnull raw bodies\nbeyond latest 10]
+    Q --> R[(Update monitor_run\nsuccess / partial_failure)]
+
+    R --> S[FastAPI\n/api endpoints]
+    S --> T[React Dashboard\nport 5174]
 ```
 
 ---
 
 ## Schema Inference Flow
 
+```mermaid
+flowchart LR
+    A([Raw JSON\nHTTP Response]) --> B[normalizer.py\nSort keys · Truncate 256KB]
+    B --> C[schema_infer.py]
+
+    C --> D{Type?}
+    D -- dict --> E[Emit object node\nRecurse children]
+    D -- list empty --> F[array · item_type=unknown]
+    D -- list scalars --> G[array · detect type\nor mixed]
+    D -- list objects --> H[Union item shapes\nMark optional if absent\nin any item]
+    D -- null --> I[nullable=true\ntype=null]
+    D -- string --> J{Distinct values\n≤ 10?}
+    J -- yes --> K[Set enum_values]
+    J -- no --> L[enum_disabled]
+    D -- scalar --> M[integer / number\nboolean]
+
+    E --> N[list of SchemaNode\nsorted by path]
+    F --> N
+    G --> N
+    H --> N
+    I --> N
+    K --> N
+    L --> N
+    M --> N
+
+    N --> O[canonical.py\nStrip example_value\njson.dumps sort_keys\nSHA-256]
+    O --> P([schema_hash])
 ```
-Raw JSON response
-      │
-      ▼
-normalizer.py ──► Sort keys alphabetically
-                  Truncate body > 256KB
-      │
-      ▼
-schema_infer.py ──► Walk JSON tree
-                    │
-                    ├─ dict → emit object node, recurse children
-                    ├─ list (empty) → array[unknown]
-                    ├─ list (scalars) → array[type or mixed]
-                    ├─ list (objects) → array[object]
-                    │    └─ union all item shapes
-                    │    └─ mark fields optional if absent in any item
-                    ├─ null → type=null, nullable=true
-                    ├─ string → track distinct values (enum if ≤10)
-                    └─ scalar → integer / number / boolean
-      │
-      ▼
-list[SchemaNode] sorted by path
-      │
-      ▼
-canonical.py ──► strip example_value
-                 json.dumps(sort_keys=True)
-                 SHA-256 → schema_hash
-      │
-      ▼
-Compare hash with prior snapshot
-      │
-   changed?
-  yes │    no │
-      │       └─► store snapshot, skip diff
-      ▼
-diff engine → list[Diff] → store as schema_diffs
+
+---
+
+## Diff Classification Flow
+
+```mermaid
+flowchart TD
+    A([Prior SchemaNode list]) --> C[schema_diff.py]
+    B([New SchemaNode list]) --> C
+
+    C --> D{Path in old\nnot in new?}
+    D -- object type --> E[nested_object_removed\n→ breaking]
+    D -- other type --> F[removed_field\n→ breaking]
+
+    C --> G{Path in new\nnot in old?}
+    G -- Yes --> H[added_field\n→ safe]
+
+    C --> I{Path in both\ntype differs?}
+    I -- int→number --> J[int_to_number\n→ risky]
+    I -- number→int --> K[number_to_int\n→ breaking]
+    I -- other --> L[type_changed\n→ breaking]
+
+    C --> M{nullable\nchanged?}
+    M -- false→true --> N[nullable_added\n→ risky]
+    M -- true→false --> O[nullable_removed\n→ safe]
+
+    C --> P{enum_values\nchanged?}
+    P -- new ⊃ old --> Q[enum_expanded\n→ risky]
+    P -- old ⊃ new --> R[enum_narrowed\n→ safe]
+    P -- overlap --> S[enum_changed\n→ risky]
+
+    C --> T{array_item_type\nchanged?}
+    T -- Yes --> U[array_item_type_changed\n→ breaking]
+
+    E & F & H & J & K & L & N & O & Q & R & S & U --> V[(schema_diffs\nPostgreSQL)]
+```
+
+---
+
+## Database Schema
+
+```mermaid
+erDiagram
+    api_endpoints {
+        UUID id PK
+        TEXT name UK
+        TEXT provider
+        TEXT url
+        TEXT method
+        JSONB headers_json
+        BOOL is_active
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    monitor_runs {
+        UUID id PK
+        TIMESTAMPTZ started_at
+        TIMESTAMPTZ finished_at
+        TEXT status
+        INT endpoints_checked
+        INT snapshots_created
+        INT diffs_detected
+        TEXT error_message
+    }
+
+    schema_snapshots {
+        UUID id PK
+        UUID endpoint_id FK
+        UUID monitor_run_id FK
+        TEXT schema_hash
+        INT status_code
+        INT response_time_ms
+        INT response_size_bytes
+        JSONB normalized_schema_json
+        JSONB raw_sample_json
+        TEXT fetch_error
+        TIMESTAMPTZ created_at
+    }
+
+    schema_diffs {
+        UUID id PK
+        UUID endpoint_id FK
+        UUID old_snapshot_id FK
+        UUID new_snapshot_id FK
+        TEXT severity
+        TEXT change_type
+        TEXT path
+        TEXT old_type
+        TEXT new_type
+        JSONB old_value_json
+        JSONB new_value_json
+        TEXT message
+        TIMESTAMPTZ created_at
+    }
+
+    changelogs {
+        UUID id PK
+        UUID endpoint_id FK
+        UUID snapshot_id FK
+        JSONB diff_ids
+        TEXT diff_set_hash
+        TEXT generated_text
+        TEXT model_name
+        TIMESTAMPTZ created_at
+    }
+
+    api_endpoints ||--o{ schema_snapshots : "has"
+    api_endpoints ||--o{ schema_diffs : "has"
+    api_endpoints ||--o{ changelogs : "has"
+    monitor_runs ||--o{ schema_snapshots : "produced by"
+    schema_snapshots ||--o{ schema_diffs : "new_snapshot"
+    schema_snapshots ||--o{ changelogs : "summarised by"
+```
+
+---
+
+## Deployment Architecture
+
+```mermaid
+flowchart LR
+    subgraph GHA [GitHub Actions]
+        CRON([Daily Cron\n08:00 UTC])
+    end
+
+    subgraph VERCEL [Vercel Hobby]
+        FE[React Dashboard\nVite · Tailwind\nFramer Motion]
+    end
+
+    subgraph GCP [GCP Cloud Run]
+        BE[FastAPI Backend\nPython 3.11\nSQLAlchemy 2]
+    end
+
+    subgraph NEON [Neon Postgres]
+        DB[(PostgreSQL 16\nFree 500MB)]
+    end
+
+    subgraph LOCAL [Local Docker Compose]
+        DS[Drift Simulator\nRotating schema\nevery 10 min]
+    end
+
+    CRON -->|POST /api/monitor/run-once\nX-SCHEMAPILOT-ADMIN-SECRET| BE
+    FE -->|REST API calls| BE
+    BE <-->|SQLAlchemy async| DB
+    DS -.->|Monitored endpoint| BE
 ```
 
 ---
