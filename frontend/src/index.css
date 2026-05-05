@@ -6,52 +6,32 @@
 
 /* ─── DESIGN TOKENS ─────────────────────────────── */
 :root {
-  /* Backgrounds */
-  --bg:          #0f1117;
-  --surface:     #161b27;
-  --surface-2:   #1c2333;
-  --border:      rgba(255,255,255,0.08);
-  --border-2:    rgba(255,255,255,0.14);
-
-  /* Text */
-  --text-1: #f1f5f9;
-  --text-2: #94a3b8;
-  --text-3: #475569;
-  --text-4: #2d3748;
-
-  /* Brand */
-  --indigo:      #6366f1;
-  --indigo-light: #818cf8;
-  --violet:      #8b5cf6;
-
-  /* Status */
-  --green:  #22c55e;
-  --red:    #ef4444;
-  --yellow: #f59e0b;
-  --blue:   #3b82f6;
-
-  /* Derived */
-  --red-dim:    rgba(239,68,68,0.12);
-  --yellow-dim: rgba(245,158,11,0.12);
-  --green-dim:  rgba(34,197,94,0.12);
-  --indigo-dim: rgba(99,102,241,0.12);
+  --bg:         #0f1117;
+  --surface:    #161b27;
+  --surface-2:  #1c2333;
+  --surface-3:  #222d42;
+  --border:     rgba(255,255,255,0.07);
+  --border-2:   rgba(255,255,255,0.12);
+  --text-1:     #f1f5f9;
+  --text-2:     #94a3b8;
+  --text-3:     #475569;
+  --text-4:     #1e293b;
+  --indigo:     #6366f1;
+  --indigo-l:   #818cf8;
+  --violet:     #8b5cf6;
+  --green:      #22c55e;
+  --red:        #ef4444;
+  --yellow:     #f59e0b;
+  --blue:       #3b82f6;
 }
 
 /* ─── RESET ─────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  font-size: 14px;
-  -webkit-text-size-adjust: 100%;
-}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; -webkit-text-size-adjust: 100%; }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-feature-settings: 'cv11' on, 'ss01' on;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-feature-settings: 'cv11' on, 'ss01' on, 'cv02' on;
   -webkit-font-smoothing: antialiased;
   background: var(--bg);
   color: var(--text-1);
@@ -59,209 +39,51 @@ body {
   overflow-x: hidden;
 }
 
-::selection {
-  background: rgba(99,102,241,0.3);
-  color: #fff;
-}
+::selection { background: rgba(99,102,241,0.35); color: white; }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
 
-/* ─── LAYOUT UTILITIES ──────────────────────────── */
-.sidebar {
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-}
-
-.topbar {
-  background: rgba(15,17,23,0.85);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
-}
-
-/* ─── CARD SYSTEM ───────────────────────────────── */
+/* ─── SHARED TOKENS ─────────────────────────────── */
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  position: relative;
-  overflow: hidden;
-}
-
-.card-elevated {
-  background: var(--surface-2);
   border: 1px solid var(--border-2);
-  border-radius: 12px;
+  border-radius: 16px;
   position: relative;
-  overflow: hidden;
 }
 
-/* ─── TYPOGRAPHY ────────────────────────────────── */
-.mono {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-}
-
-.heading-xl {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  color: var(--text-1);
-  line-height: 1.2;
-}
-
-.heading-lg {
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--text-1);
-}
-
-.heading-sm {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-1);
-}
+.mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
 
 .eyebrow {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--text-3);
 }
 
-.body {
-  font-size: 13px;
-  color: var(--text-2);
-  line-height: 1.6;
-}
-
-.caption {
-  font-size: 11px;
-  color: var(--text-3);
-}
-
-/* ─── BADGE SYSTEM ──────────────────────────────── */
 .badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  border: 1px solid;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 6px; font-size: 11px;
+  font-weight: 600; border: 1px solid; white-space: nowrap;
 }
+.badge-breaking { background: rgba(239,68,68,0.1);  color: #fca5a5; border-color: rgba(239,68,68,0.25); }
+.badge-risky    { background: rgba(245,158,11,0.1); color: #fcd34d; border-color: rgba(245,158,11,0.25); }
+.badge-safe     { background: rgba(34,197,94,0.1);  color: #86efac; border-color: rgba(34,197,94,0.25); }
 
-.badge-breaking {
-  background: var(--red-dim);
-  color: #fca5a5;
-  border-color: rgba(239,68,68,0.25);
-}
-
-.badge-risky {
-  background: var(--yellow-dim);
-  color: #fcd34d;
-  border-color: rgba(245,158,11,0.25);
-}
-
-.badge-safe {
-  background: var(--green-dim);
-  color: #86efac;
-  border-color: rgba(34,197,94,0.25);
-}
-
-/* ─── BUTTON SYSTEM ─────────────────────────────── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: none;
-  outline: none;
-  text-decoration: none;
-  white-space: nowrap;
-  line-height: 1;
-}
-
-.btn:active { transform: scale(0.97); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-primary {
-  background: var(--indigo);
-  color: #fff;
-  box-shadow: 0 1px 3px rgba(99,102,241,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--indigo-light);
-  box-shadow: 0 4px 12px rgba(99,102,241,0.45);
-}
-
-.btn-secondary {
-  background: var(--surface-2);
-  color: var(--text-2);
-  border: 1px solid var(--border-2);
-}
-.btn-secondary:hover:not(:disabled) {
-  color: var(--text-1);
-  border-color: rgba(255,255,255,0.2);
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-3);
-}
-.btn-ghost:hover { color: var(--text-1); background: rgba(255,255,255,0.05); }
-
-/* ─── TABLE ROWS ────────────────────────────────── */
-.row {
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  transition: background 0.1s ease;
-}
+.row { border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.1s ease; }
 .row:hover { background: rgba(255,255,255,0.03); }
 .row:last-child { border-bottom: none; }
 
-/* ─── STATUS DOTS ───────────────────────────────── */
-.dot-green  { background: var(--green); }
-.dot-red    { background: var(--red); }
-.dot-yellow { background: var(--yellow); }
-.dot-blue   { background: var(--blue); }
-.dot-gray   { background: var(--text-3); }
-
-/* ─── INPUT ─────────────────────────────────────── */
 .input {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border-2);
-  border-radius: 8px;
-  color: var(--text-1);
-  font-size: 13px;
-  padding: 7px 12px;
-  outline: none;
-  transition: border-color 0.15s ease;
-  width: 100%;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border-2);
+  border-radius: 10px; color: var(--text-1); font-size: 13px;
+  padding: 7px 12px; outline: none; transition: all 0.15s ease; width: 100%;
 }
 .input::placeholder { color: var(--text-3); }
-.input:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.input:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
-/* ─── TYPE CHIPS ────────────────────────────────── */
-.type-chip {
-  display: inline-flex;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  font-family: 'JetBrains Mono', monospace;
-  border: 1px solid;
-}
+.type-chip { display: inline-flex; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'JetBrains Mono', monospace; border: 1px solid; }
 .tc-string  { color: #86efac; background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.2); }
 .tc-integer,
 .tc-number  { color: #fcd34d; background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.2); }
@@ -271,129 +93,114 @@ body {
 .tc-null    { color: var(--text-3); background: rgba(71,85,105,0.08); border-color: rgba(71,85,105,0.2); }
 .tc-mixed   { color: #fdba74; background: rgba(249,115,22,0.08);  border-color: rgba(249,115,22,0.2); }
 
+/* ─── CSS VARIABLES ─────────────────────────────── */
+@property --neon-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@property --bg-size    { syntax: '<percentage>'; initial-value: 400%; inherits: false; }
+
 /* ─── KEYFRAMES ─────────────────────────────────── */
 
-/* BorderBeam */
-@keyframes border-beam {
-  0%   { offset-distance: 0%; }
-  100% { offset-distance: 100%; }
-}
-@keyframes border-beam-reverse {
-  0%   { offset-distance: 100%; }
-  100% { offset-distance: 0%; }
-}
+/* 1. BorderBeam */
+@keyframes border-beam         { 0% { offset-distance: 0%; }   100% { offset-distance: 100%; } }
+@keyframes border-beam-reverse { 0% { offset-distance: 100%; } 100% { offset-distance: 0%; } }
 
-/* Meteor */
+/* 2. Meteor shower */
 @keyframes meteor {
   0%   { transform: rotate(215deg) translateX(0); opacity: 1; }
   70%  { opacity: 1; }
   100% { transform: rotate(215deg) translateX(-500px); opacity: 0; }
 }
 
-/* Shimmer sweep */
+/* 3. RetroGrid scroll */
+@keyframes retro-grid {
+  0%   { transform: translateY(-33.333%); }
+  100% { transform: translateY(0); }
+}
+
+/* 4. Neon border rotation */
+@keyframes neon-border { to { --neon-angle: 360deg; } }
+
+/* 5. Gradient text animation */
+@keyframes gradient-text {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+/* 6. Ripple expand */
+@keyframes ripple {
+  0%   { transform: scale(0); opacity: 0.6; }
+  100% { transform: scale(16); opacity: 0; }
+}
+
+/* 7. Shimmer sweep */
 @keyframes shimmer-slide {
   0%   { transform: translateX(-200%) skewX(-15deg); }
   100% { transform: translateX(300%) skewX(-15deg); }
 }
 
-/* Marquee */
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(calc(-100% - var(--gap))); }
-}
-@keyframes marquee-vertical {
-  from { transform: translateY(0); }
-  to   { transform: translateY(calc(-100% - var(--gap))); }
-}
+/* 8. Marquee */
+@keyframes marquee          { from { transform: translateX(0); }    to { transform: translateX(calc(-100% - var(--gap))); } }
+@keyframes marquee-vertical { from { transform: translateY(0); }    to { transform: translateY(calc(-100% - var(--gap))); } }
 
-/* Entry */
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* 9. Fade up entry */
+@keyframes fade-up   { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes fade-in   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-down { from { opacity: 0; transform: translateY(-12px) scale(0.98); } to { opacity: 1; transform: none; } }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+/* 10. Skeleton */
+@keyframes skeleton { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
 
-/* Skeleton */
-@keyframes skeleton {
-  0%   { background-position: -600px 0; }
-  100% { background-position: 600px 0; }
-}
+/* 11. Live dot pulse */
+@keyframes live-dot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.85); } }
 
-/* Live pulse */
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.3; }
-}
+/* 12. Glow pulse */
+@keyframes glow-pulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
 
-/* Slide down (modal) */
-@keyframes slide-down {
-  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
+/* 13. Float */
+@keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
 
-/* Float */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-5px); }
-}
+/* 14. Spin slow */
+@keyframes spin-slow { to { transform: rotate(360deg); } }
 
-/* ─── ANIMATION UTILITIES ───────────────────────── */
+/* 15. Health ring draw */
+@keyframes ring-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: var(--ring-offset); } }
+
+/* 16. Slide down modal */
+@keyframes slide-down { from { opacity:0; transform:translateY(-14px) scale(0.97); } to { opacity:1; transform:none; } }
+
+/* 17. Width grow */
+@keyframes width-grow { from { width:0; } to { width:100%; } }
+
+/* ─── UTILITY ANIMATIONS ────────────────────────── */
 @layer utilities {
-  .animate-border-beam {
-    animation: border-beam calc(var(--duration) * 1s) infinite linear;
-  }
-  .animate-border-beam-reverse {
-    animation: border-beam-reverse calc(var(--duration) * 1s) infinite linear;
-  }
-  .animate-meteor {
-    animation: meteor var(--duration, 6s) linear infinite;
-  }
-  .animate-shimmer-slide {
-    animation: shimmer-slide 2.2s ease infinite;
-  }
-  .animate-marquee {
-    animation: marquee var(--duration, 20s) linear infinite;
-  }
-  .animate-marquee-vertical {
-    animation: marquee-vertical var(--duration, 20s) linear infinite;
-  }
-  .animate-fade-up {
-    animation: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-  .animate-fade-in {
-    animation: fade-in 0.25s ease both;
-  }
-  .animate-slide-down {
-    animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-  .animate-live {
-    animation: live-pulse 2s ease-in-out infinite;
-  }
+  .animate-border-beam         { animation: border-beam         calc(var(--duration)*1s) infinite linear; }
+  .animate-border-beam-reverse { animation: border-beam-reverse calc(var(--duration)*1s) infinite linear; }
+  .animate-meteor              { animation: meteor var(--duration,6s) linear infinite; }
+  .animate-retro-grid          { animation: retro-grid 12s linear infinite; }
+  .animate-neon-border         { animation: neon-border 3s linear infinite; }
+  .animate-gradient-text       { animation: gradient-text 4s ease infinite; background-size: 300% 300%; }
+  .animate-ripple              { animation: ripple 0.6s linear forwards; }
+  .animate-shimmer-slide       { animation: shimmer-slide 2.2s ease infinite; }
+  .animate-marquee             { animation: marquee          var(--duration,20s) linear infinite; }
+  .animate-marquee-vertical    { animation: marquee-vertical var(--duration,20s) linear infinite; }
+  .animate-fade-up             { animation: fade-up 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+  .animate-fade-in             { animation: fade-in 0.3s ease both; }
+  .animate-fade-down           { animation: fade-down 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+  .animate-float               { animation: float 3s ease-in-out infinite; }
+  .animate-spin-slow           { animation: spin-slow 3s linear infinite; }
+  .animate-live-dot            { animation: live-dot 2s ease-in-out infinite; }
+  .animate-glow-pulse          { animation: glow-pulse 2s ease-in-out infinite; }
 
-  /* Skeleton loader */
   .skel {
-    background: linear-gradient(90deg,
-      rgba(255,255,255,0.04) 25%,
-      rgba(255,255,255,0.08) 50%,
-      rgba(255,255,255,0.04) 75%
-    );
+    background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
     background-size: 600px 100%;
     animation: skeleton 1.6s infinite linear;
     border-radius: 8px;
   }
 
-  /* Stagger */
   .stagger > *:nth-child(1) { animation-delay: 0ms; }
-  .stagger > *:nth-child(2) { animation-delay: 60ms; }
-  .stagger > *:nth-child(3) { animation-delay: 120ms; }
-  .stagger > *:nth-child(4) { animation-delay: 180ms; }
-  .stagger > *:nth-child(5) { animation-delay: 240ms; }
-  .stagger > *:nth-child(n+6) { animation-delay: 300ms; }
+  .stagger > *:nth-child(2) { animation-delay: 70ms; }
+  .stagger > *:nth-child(3) { animation-delay: 140ms; }
+  .stagger > *:nth-child(4) { animation-delay: 210ms; }
+  .stagger > *:nth-child(5) { animation-delay: 280ms; }
+  .stagger > *:nth-child(n+6) { animation-delay: 350ms; }
 }
