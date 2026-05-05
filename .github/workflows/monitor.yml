@@ -1,0 +1,20 @@
+name: SchemaPilot Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"   # daily at 08:00 UTC
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger monitor run
+        run: |
+          curl -fsSL --max-time 120 \
+            -X POST "$BACKEND_URL/api/monitor/run-once" \
+            -H "X-SCHEMAPILOT-ADMIN-SECRET: $ADMIN_SECRET" \
+            -H "Content-Type: application/json"
+        env:
+          BACKEND_URL: ${{ secrets.SCHEMAPILOT_BACKEND_URL }}
+          ADMIN_SECRET: ${{ secrets.SCHEMAPILOT_ADMIN_SECRET }}
