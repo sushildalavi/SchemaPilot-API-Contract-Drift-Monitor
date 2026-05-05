@@ -13,84 +13,53 @@ function timeAgo(dt: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-interface Props {
-  snapshots: Snapshot[];
-  diffSnapshotIds: Set<string>;
-}
-
-export function SchemaTimeline({ snapshots, diffSnapshotIds }: Props) {
-  if (!snapshots.length)
-    return <p className="text-[13px] text-slate-600 py-8 text-center">No snapshots yet.</p>;
+export function SchemaTimeline({ snapshots, diffSnapshotIds }: { snapshots: Snapshot[]; diffSnapshotIds: Set<string> }) {
+  if (!snapshots.length) return <p className="body text-center py-8">No snapshots yet.</p>;
 
   return (
-    <div className="space-y-0 relative">
-      {/* Vertical line */}
-      <div className="absolute left-[7px] top-3 bottom-3 w-px" style={{ background: "rgba(255,255,255,0.05)" }} />
+    <div className="relative">
+      <div className="absolute left-[7px] top-4 bottom-4 w-px" style={{ background: "var(--border-2)" }} />
+      <div className="space-y-0">
+        {snapshots.map((s, i) => {
+          const hasDrift  = diffSnapshotIds.has(s.id);
+          const failed    = !!s.fetch_error;
+          const isLatest  = i === 0;
+          const dotColor  = failed ? "var(--text-3)" : hasDrift ? "#ef4444" : "#22c55e";
 
-      {snapshots.map((s, i) => {
-        const hasDrift = diffSnapshotIds.has(s.id);
-        const failed = !!s.fetch_error;
-        const isLatest = i === 0;
-        const dotColor = failed ? "#475569" : hasDrift ? "#ef4444" : "#10b981";
-
-        return (
-          <motion.div
-            key={s.id}
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.05, duration: 0.3, type: "spring", stiffness: 200 }}
-            className="relative flex gap-5 pb-5"
-          >
-            {/* Dot */}
-            <div className="relative z-10 flex-shrink-0 mt-0.5">
-              {hasDrift && !failed ? (
-                <div className="relative w-3.5 h-3.5">
-                  <div className="absolute inset-0 rounded-full animate-ping" style={{ background: `${dotColor}30` }} />
-                  <div className="w-3.5 h-3.5 rounded-full border-2 relative" style={{ background: dotColor, borderColor: "#080811" }} />
-                </div>
-              ) : (
-                <div className="w-3.5 h-3.5 rounded-full border-2" style={{ background: dotColor, borderColor: "#080811" }} />
-              )}
-            </div>
-
-            {/* Content */}
-            <div className={`flex-1 min-w-0 rounded-xl p-3 transition-all duration-200 hover:bg-white/2 ${
-              isLatest ? "border border-white/6" : "border border-transparent"
-            }`} style={isLatest ? { background: "rgba(255,255,255,0.02)" } : {}}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] text-slate-500">{fmt(s.created_at)}</span>
-                <span className="text-slate-700 text-[10px]">·</span>
-                <span className="text-[11px] text-slate-600">{timeAgo(s.created_at)}</span>
-                {isLatest && (
-                  <span className="text-[10px] bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded-md font-semibold uppercase tracking-wide">
-                    current
-                  </span>
+          return (
+            <motion.div key={s.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+              className="relative flex gap-5 pb-4">
+              <div className="flex-shrink-0 mt-1 relative z-10">
+                {hasDrift && !failed && (
+                  <span className="absolute inset-0 rounded-full animate-ping opacity-50" style={{ background: "#ef4444", borderRadius: "50%" }} />
                 )}
-                {hasDrift && (
-                  <span className="text-[10px] bg-red-500/15 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded-md font-semibold">
-                    ⚡ drift
-                  </span>
-                )}
+                <span className="w-3.5 h-3.5 rounded-full block relative" style={{ background: dotColor, border: "2px solid var(--bg)" }} />
               </div>
 
-              {failed ? (
-                <p className="text-[11px] text-red-400/60 mt-1.5 truncate">{s.fetch_error}</p>
-              ) : (
-                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                  <code className="mono text-[11px] text-indigo-400/70">{s.schema_hash.slice(0, 16)}</code>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.04)", color: "#64748b" }}>
-                    HTTP {s.status_code}
-                  </span>
-                  <span className="text-[11px] text-slate-600">{s.response_time_ms}ms</span>
-                  <span className="text-[11px] text-slate-700">
-                    {s.response_size_bytes > 1024 ? `${(s.response_size_bytes / 1024).toFixed(1)}KB` : `${s.response_size_bytes}B`}
-                  </span>
+              <div className="flex-1 min-w-0 pb-0.5">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="caption" style={{ color: "var(--text-2)" }}>{fmt(s.created_at)}</span>
+                  <span className="caption">·</span>
+                  <span className="caption">{timeAgo(s.created_at)}</span>
+                  {isLatest && <span className="badge" style={{ background: "rgba(99,102,241,0.1)", color: "var(--indigo-light)", borderColor: "rgba(99,102,241,0.2)", fontSize: 10 }}>latest</span>}
+                  {hasDrift && <span className="badge badge-breaking" style={{ fontSize: 10 }}>⚡ drift</span>}
                 </div>
-              )}
-            </div>
-          </motion.div>
-        );
-      })}
+
+                {failed ? (
+                  <p className="body" style={{ fontSize: 12, color: "#fca5a5" }}>{s.fetch_error}</p>
+                ) : (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <code className="mono caption" style={{ color: "var(--indigo-light)" }}>{s.schema_hash.slice(0, 16)}</code>
+                    <span className="caption" style={{ background: "rgba(255,255,255,0.05)", padding: "1px 6px", borderRadius: 4 }}>HTTP {s.status_code}</span>
+                    <span className="caption">{s.response_time_ms}ms</span>
+                    <span className="caption">{s.response_size_bytes > 1024 ? `${(s.response_size_bytes / 1024).toFixed(1)}KB` : `${s.response_size_bytes}B`}</span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

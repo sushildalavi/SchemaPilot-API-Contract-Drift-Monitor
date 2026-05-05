@@ -20,25 +20,25 @@ function timeAgo(dt: string) {
 type Filter = Severity | "all";
 const FILTERS: Filter[] = ["all", "breaking", "risky", "safe"];
 
-const FILTER_ACTIVE: Record<string, { bg: string; text: string; border: string }> = {
-  all:      { bg: "rgba(255,255,255,0.07)", text: "#f0f0f0",  border: "rgba(255,255,255,0.15)" },
-  breaking: { bg: "rgba(239,68,68,0.1)",   text: "#fca5a5",  border: "rgba(239,68,68,0.25)" },
-  risky:    { bg: "rgba(249,115,22,0.1)",  text: "#fdba74",  border: "rgba(249,115,22,0.25)" },
-  safe:     { bg: "rgba(16,185,129,0.1)",  text: "#6ee7b7",  border: "rgba(16,185,129,0.25)" },
+const ACTIVE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
+  all:      { bg: "rgba(255,255,255,0.08)", color: "var(--text-1)", border: "rgba(255,255,255,0.15)" },
+  breaking: { bg: "rgba(239,68,68,0.12)",  color: "#fca5a5",       border: "rgba(239,68,68,0.25)" },
+  risky:    { bg: "rgba(245,158,11,0.12)", color: "#fcd34d",       border: "rgba(245,158,11,0.25)" },
+  safe:     { bg: "rgba(34,197,94,0.12)",  color: "#86efac",       border: "rgba(34,197,94,0.25)" },
 };
 
-const CHANGE_COLORS: Record<string, string> = {
-  removed_field: "#fc8181", added_field: "#6ee7b7", type_changed: "#fcd34d",
-  int_to_number: "#fbbf24", number_to_int: "#fbbf24", nullable_added: "#7dd3fc",
+const STAT_CARDS: [string, string, string, string][] = [
+  ["Breaking", "breaking", "#fca5a5", "rgba(239,68,68,0.07)"],
+  ["Risky",    "risky",    "#fcd34d", "rgba(245,158,11,0.07)"],
+  ["Safe",     "safe",     "#86efac", "rgba(34,197,94,0.07)"],
+];
+
+const CHANGE_COLOR: Record<string, string> = {
+  removed_field: "#fca5a5", added_field: "#86efac", type_changed: "#fcd34d",
+  int_to_number: "#fcd34d", number_to_int: "#fcd34d", nullable_added: "#93c5fd",
   nullable_removed: "#67e8f9", enum_expanded: "#c4b5fd", enum_narrowed: "#a5b4fc",
-  enum_changed: "#c4b5fd", array_item_type_changed: "#fca5a5", nested_object_removed: "#fc8181",
+  enum_changed: "#c4b5fd", array_item_type_changed: "#fca5a5", nested_object_removed: "#fca5a5",
 };
-
-const STAT_CARDS = [
-  ["Breaking", "breaking", "#fc8181", "rgba(239,68,68,0.06)"],
-  ["Risky",    "risky",    "#fdba74", "rgba(249,115,22,0.06)"],
-  ["Safe",     "safe",     "#6ee7b7", "rgba(16,185,129,0.06)"],
-] as [string, string, string, string][];
 
 export function RecentDiffs() {
   const [severity, setSeverity] = useState<Filter>("all");
@@ -68,33 +68,32 @@ export function RecentDiffs() {
   return (
     <motion.div
       className="space-y-6"
-      style={{ maxWidth: 1400 }}
-      initial={{ opacity: 0, y: 14 }}
+      style={{ maxWidth: 1440 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+      transition={{ duration: 0.28, type: "spring", stiffness: 200 }}
     >
+      {/* Header */}
       <div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.03em", color: "#f0f0f0", lineHeight: 1 }}>Diff History</h1>
-        <p style={{ fontSize: 13, color: "#2a2a3a", marginTop: 6 }}>{filtered.length} diffs · {endpoints.length} endpoints</p>
+        <h1 className="heading-xl">Diff History</h1>
+        <p className="body mt-1.5">{filtered.length} diffs · {endpoints.length} endpoints monitored</p>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-3 gap-4">
         {STAT_CARDS.map(([label, key, color, glow]) => (
-          <motion.div key={key} whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-            <MagicCard className="sp-card overflow-hidden cursor-pointer" gradientColor={glow} gradientSize={200}>
+          <motion.div key={key} whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.98 }}>
+            <MagicCard className="card overflow-hidden cursor-pointer" gradientColor={glow} gradientSize={220}>
               <button
                 onClick={() => setSeverity(severity === key ? "all" : key as Severity)}
                 className="w-full text-left"
-                style={{ padding: "18px 20px", background: "none", border: "none", cursor: "pointer" }}
+                style={{ padding: "20px 22px", background: "none", border: "none", cursor: "pointer" }}
               >
-                <p className="sp-label mb-2">{label}</p>
-                <p className="mono" style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.05em", lineHeight: 1, color: (counts[key] ?? 0) > 0 ? color : "#1e1e2a" }}>
+                <p className="eyebrow mb-2">{label}</p>
+                <p className="mono" style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.05em", lineHeight: 1, color: (counts[key] ?? 0) > 0 ? color : "var(--text-4)" }}>
                   <NumberTicker value={counts[key] ?? 0} />
                 </p>
-                <p style={{ fontSize: 11, color: "#2a2a3a", marginTop: 6 }}>
-                  {(counts[key] ?? 0) > 0 ? "diffs detected" : "no events"}
-                </p>
+                <p className="caption mt-2">{(counts[key] ?? 0) > 0 ? "diffs detected" : "all clear"}</p>
               </button>
               {severity === key && <BorderBeam size={80} duration={5} colorFrom={color} colorTo="transparent" borderWidth={1} />}
             </MagicCard>
@@ -102,76 +101,83 @@ export function RecentDiffs() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Filter bar */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1.5">
           {FILTERS.map(f => {
             const isActive = severity === f;
-            const cfg = FILTER_ACTIVE[f];
+            const a = ACTIVE_STYLE[f];
             return (
-              <motion.button key={f} whileTap={{ scale: 0.95 }}
+              <motion.button
+                key={f}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => setSeverity(f)}
                 style={{
-                  padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600,
-                  textTransform: "capitalize", cursor: "pointer",
-                  border: `1px solid ${isActive ? cfg.border : "rgba(255,255,255,0.07)"}`,
-                  background: isActive ? cfg.bg : "rgba(255,255,255,0.02)",
-                  color: isActive ? cfg.text : "#2a2a3a",
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  textTransform: "capitalize",
+                  cursor: "pointer",
+                  border: `1px solid ${isActive ? a.border : "var(--border-2)"}`,
+                  background: isActive ? a.bg : "rgba(255,255,255,0.03)",
+                  color: isActive ? a.color : "var(--text-3)",
                   transition: "all 0.15s ease",
                 }}
               >
                 {f}
                 {f !== "all" && (counts[f] ?? 0) > 0 && (
-                  <span style={{ marginLeft: 5, opacity: 0.7, fontFamily: "JetBrains Mono,monospace", fontSize: 10 }}>{counts[f]}</span>
+                  <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.7, fontFamily: "JetBrains Mono,monospace" }}>{counts[f]}</span>
                 )}
               </motion.button>
             );
           })}
         </div>
 
-        <div className="relative flex-1 max-w-xs">
-          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}
-            style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#2a2a3a", pointerEvents: "none" }}>
+        <div className="relative" style={{ flex: 1, maxWidth: 300 }}>
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}
+            style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--text-3)", pointerEvents: "none" }}>
             <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" />
           </svg>
-          <input type="text" placeholder="Filter by path, change, endpoint…"
-            value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width: "100%", paddingLeft: 30, paddingRight: 12, paddingTop: 6, paddingBottom: 6, borderRadius: 8, fontSize: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", color: "#d0d0e0", outline: "none" }}
-            onFocus={e => (e.currentTarget.style.borderColor = "rgba(99,102,241,0.4)")}
-            onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)")}
+          <input
+            type="text"
+            placeholder="Filter path, change type, endpoint…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input"
+            style={{ paddingLeft: 34, fontSize: 12 }}
           />
         </div>
 
         {search && (
           <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
             onClick={() => setSearch("")}
-            style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11, color: "#383850", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer" }}>
-            Clear ✕
-          </motion.button>
+            className="btn btn-secondary caption"
+          >Clear ✕</motion.button>
         )}
 
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "#1e1e2a" }}>{filtered.length} results</span>
+        <span className="caption" style={{ marginLeft: "auto" }}>{filtered.length} results</span>
       </div>
 
       {/* Table */}
-      <MagicCard className="sp-card overflow-hidden" gradientColor="rgba(99,102,241,0.04)">
+      <MagicCard className="card overflow-hidden" gradientColor="rgba(99,102,241,0.04)">
         {isLoading ? (
-          <div style={{ padding: 16 }} className="space-y-2">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}
+          <div className="p-5 space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skel h-10 rounded-lg" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-3">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={1.8}><path strokeLinecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+              <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#22c55e" strokeWidth={1.8}><path strokeLinecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#383850" }}>No diffs found</p>
-            <p style={{ fontSize: 12, color: "#2a2a3a" }}>Try a different filter or trigger a monitor run</p>
+            <p className="heading-sm">No diffs found</p>
+            <p className="body">Try a different filter or trigger a monitor run</p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-[80px_130px_1fr_140px_65px_65px_80px_14px] gap-3 px-5 py-2.5"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-              {["Severity", "Change", "Path", "Endpoint", "Old", "New", "When", ""].map(h => <span key={h} className="sp-label">{h}</span>)}
+            <div className="grid grid-cols-[85px_140px_1fr_150px_65px_65px_80px_16px] gap-3 px-5 py-2.5"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              {["Severity", "Change", "Path", "Endpoint", "Old", "New", "When", ""].map(h => <span key={h} className="eyebrow">{h}</span>)}
             </div>
 
             <AnimatePresence initial={false}>
@@ -179,41 +185,41 @@ export function RecentDiffs() {
                 const ep = epMap[d.endpoint_id];
                 const isOpen = expanded === d.id;
                 return (
-                  <motion.div key={d.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.015, 0.2) }}
-                    style={{ borderBottom: "1px solid rgba(255,255,255,0.025)" }}>
+                  <motion.div key={d.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.015, 0.25) }}>
                     <div
-                      className="grid grid-cols-[80px_130px_1fr_140px_65px_65px_80px_14px] gap-3 px-5 py-2.5 tr-hover cursor-pointer"
+                      className="row grid grid-cols-[85px_140px_1fr_150px_65px_65px_80px_16px] gap-3 px-5 py-3 cursor-pointer"
                       onClick={() => setExpanded(isOpen ? null : d.id)}
                     >
                       <div className="self-center">
-                        <span className={`sp-badge sp-badge-${d.severity}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${d.severity === "breaking" ? "bg-red-400" : d.severity === "risky" ? "bg-orange-400" : "bg-emerald-400"}`} />
+                        <span className={`badge badge-${d.severity}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${d.severity === "breaking" ? "dot-red" : d.severity === "risky" ? "dot-yellow" : "dot-green"}`} />
                           {d.severity}
                         </span>
                       </div>
-                      <span className="mono self-center" style={{ fontSize: 10, color: CHANGE_COLORS[d.change_type] ?? "#505068" }}>{d.change_type}</span>
-                      <code className="mono self-center truncate" style={{ fontSize: 10, color: "#6366f1" }}>{d.path}</code>
+                      <span className="mono self-center" style={{ fontSize: 11, color: CHANGE_COLOR[d.change_type] ?? "var(--text-2)" }}>{d.change_type}</span>
+                      <code className="mono self-center truncate" style={{ fontSize: 11, color: "var(--indigo-light)" }}>{d.path}</code>
                       {ep ? (
-                        <Link to={`/endpoints/${ep.id}`} onClick={e => e.stopPropagation()}
-                          className="self-center truncate" style={{ fontSize: 11, color: "#383850" }}
-                          onMouseEnter={e => (e.currentTarget.style.color = "#818cf8")}
-                          onMouseLeave={e => (e.currentTarget.style.color = "#383850")}>
+                        <Link to={`/endpoints/${ep.id}`} onClick={e => e.stopPropagation()} className="self-center body truncate" style={{ fontSize: 12, color: "var(--text-2)" }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "var(--indigo-light)")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "var(--text-2)")}>
                           {ep.name}
                         </Link>
-                      ) : <span className="self-center" style={{ fontSize: 11, color: "#1e1e2a" }}>—</span>}
-                      <span className="mono self-center" style={{ fontSize: 9, color: "#2a2a3a" }}>{d.old_type ?? "—"}</span>
-                      <span className="mono self-center" style={{ fontSize: 9, color: "#2a2a3a" }}>{d.new_type ?? "—"}</span>
-                      <span style={{ fontSize: 10, color: "#1e1e2a", alignSelf: "center", whiteSpace: "nowrap" }}>{timeAgo(d.created_at)}</span>
+                      ) : <span className="self-center caption">—</span>}
+                      <span className="mono self-center caption">{d.old_type ?? "—"}</span>
+                      <span className="mono self-center caption">{d.new_type ?? "—"}</span>
+                      <span className="self-center caption">{timeAgo(d.created_at)}</span>
                       <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="self-center">
-                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: "#1e1e2a" }}><path strokeLinecap="round" d="M19 9l-7 7-7-7" /></svg>
+                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: "var(--text-3)" }}>
+                          <path strokeLinecap="round" d="M19 9l-7 7-7-7" />
+                        </svg>
                       </motion.div>
                     </div>
                     <AnimatePresence>
                       {isOpen && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
-                          <div style={{ padding: "0 20px 12px" }}>
-                            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#505068" }}>
-                              <span style={{ color: "#2a2a3a", marginRight: 8 }}>↳</span>{d.message}
+                          <div className="px-5 pb-3">
+                            <div className="rounded-lg px-4 py-3 body" style={{ background: "var(--surface-2)", border: "1px solid var(--border)", fontSize: 12 }}>
+                              <span style={{ color: "var(--text-3)", marginRight: 8 }}>↳</span>{d.message}
                             </div>
                           </div>
                         </motion.div>

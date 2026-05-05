@@ -12,15 +12,16 @@ import { Sparkline } from "../components/Sparkline";
 import type { MonitorRun } from "../types";
 
 const STATUS: Record<MonitorRun["status"], { color: string; dot: string; label: string }> = {
-  success:         { color: "#6ee7b7", dot: "#34d399", label: "Success" },
-  partial_failure: { color: "#fcd34d", dot: "#fbbf24", label: "Partial" },
-  failed:          { color: "#fca5a5", dot: "#f87171", label: "Failed" },
-  running:         { color: "#93c5fd", dot: "#60a5fa", label: "Running" },
+  success:         { color: "#86efac", dot: "dot-green",  label: "Completed" },
+  partial_failure: { color: "#fcd34d", dot: "dot-yellow", label: "Partial" },
+  failed:          { color: "#fca5a5", dot: "dot-red",    label: "Failed" },
+  running:         { color: "#93c5fd", dot: "dot-blue",   label: "Running" },
 };
 
 function timeAgo(dt: string | null) {
   if (!dt) return "–";
-  const m = Math.floor((Date.now() - new Date(dt).getTime()) / 60000);
+  const diff = Date.now() - new Date(dt).getTime();
+  const m = Math.floor(diff / 60000);
   if (m < 1) return "just now";
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
@@ -28,110 +29,95 @@ function timeAgo(dt: string | null) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function Skel({ className = "" }: { className?: string }) {
-  return <div className={`skeleton ${className}`} />;
+function Skel({ h = "h-8", className = "" }: { h?: string; className?: string }) {
+  return <div className={`skel ${h} ${className}`} />;
 }
 
-const parent = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
-const child  = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 220, damping: 22 } } };
+const V = {
+  container: { hidden: {}, show: { transition: { staggerChildren: 0.06 } } },
+  item: { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 260, damping: 24 } } },
+};
 
 export function Dashboard() {
   const { data: endpoints = [], isLoading: epLoad } = useQuery({ queryKey: QUERY_KEYS.endpoints, queryFn: api.endpoints.list, staleTime: 30_000, refetchInterval: 60_000 });
   const { data: runs = [], isLoading: runsLoad } = useQuery({ queryKey: QUERY_KEYS.monitorRuns, queryFn: () => api.monitor.runs(20), staleTime: 30_000, refetchInterval: 30_000 });
   const { data: allDiffs = [] } = useQuery({ queryKey: QUERY_KEYS.recentDiffs, queryFn: () => api.diffs.recent(200), staleTime: 30_000, refetchInterval: 30_000 });
 
-  const latestRun = runs[0];
-  const breaking = allDiffs.filter(d => d.severity === "breaking").length;
-  const risky    = allDiffs.filter(d => d.severity === "risky").length;
-  const safe     = allDiffs.filter(d => d.severity === "safe").length;
-
+  const latestRun  = runs[0];
+  const breaking   = allDiffs.filter(d => d.severity === "breaking").length;
+  const risky      = allDiffs.filter(d => d.severity === "risky").length;
+  const safe       = allDiffs.filter(d => d.severity === "safe").length;
   const driftTrend = runs.slice().reverse().map(r => r.diffs_detected);
-  const epTrend    = runs.slice().reverse().map(r => r.endpoints_checked);
   const statusCfg  = latestRun ? STATUS[latestRun.status] : null;
+  const totalSnaps = runs.reduce((a, r) => a + r.snapshots_created, 0);
 
   return (
-    <motion.div
-      className="space-y-6"
-      style={{ maxWidth: 1400 }}
-      variants={parent}
-      initial="hidden"
-      animate="show"
-    >
+    <motion.div className="space-y-6" style={{ maxWidth: 1440 }} variants={V.container} initial="hidden" animate="show">
 
-      {/* ── Hero header with Meteors ─────────────────── */}
-      <motion.div variants={child} className="relative overflow-hidden rounded-2xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", padding: "28px 28px 24px" }}>
-        <Meteors number={14} />
-        <div className="relative z-10 flex items-start justify-between gap-4">
+      {/* ── Hero banner ─────────────────────────────────── */}
+      <motion.div variants={V.item} className="relative overflow-hidden rounded-2xl" style={{ background: "var(--surface)", border: "1px solid var(--border-2)", padding: "28px 32px 24px" }}>
+        <Meteors number={10} />
+        <BorderBeam size={250} duration={10} colorFrom="#6366f1" colorTo="#8b5cf6" borderWidth={1} />
+
+        <div className="relative z-10 flex items-start justify-between gap-6 flex-wrap">
           <div>
-            <div className="flex items-center gap-3 mb-1.5">
-              <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: "#f0f0f0", lineHeight: 1 }}>
-                API Contract Monitor
-              </h1>
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <h1 className="heading-xl">API Contract Monitor</h1>
               {statusCfg && (
-                <motion.span
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
-                  style={{ background: `${statusCfg.dot}15`, border: `1px solid ${statusCfg.dot}30`, fontSize: 11, fontWeight: 600, color: statusCfg.color }}
+                <span
+                  className="flex items-center gap-2 rounded-full px-3 py-1"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 12, fontWeight: 500, color: statusCfg.color }}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusCfg.dot }} />
+                  <span className={`w-2 h-2 rounded-full ${statusCfg.dot}`} />
                   {statusCfg.label}
-                </motion.span>
+                </span>
               )}
             </div>
-            <p style={{ fontSize: 13, color: "#383850" }}>
-              {endpoints.length} endpoints · {runs.length} runs · {allDiffs.length} diffs detected
-              {latestRun && ` · last checked ${timeAgo(latestRun.started_at)}`}
+            <p className="body">
+              Monitoring {endpoints.length} endpoints · {runs.length} runs · {totalSnaps} snapshots
+              {latestRun && ` · last run ${timeAgo(latestRun.started_at)}`}
             </p>
           </div>
-          <div className="flex-shrink-0 hidden md:flex items-center gap-3">
+
+          {/* Quick stats */}
+          <div className="flex items-center gap-6 flex-shrink-0">
             {([
-              { label: "Breaking", val: breaking, c: "#fc8181" },
-              { label: "Risky",    val: risky,    c: "#fdba74" },
-              { label: "Safe",     val: safe,     c: "#6ee7b7" },
-            ] as {label:string;val:number;c:string}[]).map(({ label, val, c }) => (
-              <div key={label} className="text-right">
-                <p style={{ fontSize: 22, fontWeight: 700, color: val > 0 ? c : "#1e1e2a", fontFamily: "JetBrains Mono,monospace", lineHeight: 1 }}>{val}</p>
-                <p style={{ fontSize: 10, color: "#2a2a3a", marginTop: 2 }}>{label}</p>
+              ["Breaking", breaking, "#fca5a5"],
+              ["Risky",    risky,    "#fcd34d"],
+              ["Safe",     safe,     "#86efac"],
+            ] as [string, number, string][]).map(([label, val, color]) => (
+              <div key={label} className="text-center">
+                <p className="mono" style={{ fontSize: 26, fontWeight: 700, lineHeight: 1, color: val > 0 ? color : "var(--text-4)" }}>
+                  {val}
+                </p>
+                <p className="caption mt-1">{label}</p>
               </div>
             ))}
           </div>
         </div>
-        <BorderBeam size={200} duration={10} colorFrom="#6366f1" colorTo="#a855f7" borderWidth={1} />
       </motion.div>
 
-      {/* ── Big metric cards ─────────────────────────── */}
-      <motion.div variants={child} className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-        {epLoad ? Array.from({length:4}).map((_,i) => <Skel key={i} className="h-28 rounded-xl" />) : (
+      {/* ── Metrics row ─────────────────────────────────── */}
+      <motion.div variants={V.item} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {epLoad ? Array.from({ length: 4 }).map((_, i) => <Skel key={i} h="h-[120px]" className="rounded-xl" />) : (
           <>
             {([
-              { label: "Endpoints",    value: endpoints.length, spark: epTrend, color: "#818cf8", sparkColor: "#6366f1", sub: `${runs.reduce((a,r) => a+r.snapshots_created,0)} total snapshots` },
-              { label: "Breaking",     value: breaking, spark: driftTrend, color: breaking>0?"#fc8181":"#1e1e2a", sparkColor: "#ef4444", sub: breaking>0?"Needs attention":"Schema stable" },
-              { label: "Risky",        value: risky,    spark: [0,0,1,1,2,1], color: risky>0?"#fdba74":"#1e1e2a", sparkColor: "#f97316", sub: "Requires review" },
-              { label: "Safe Changes", value: safe,     spark: [1,2,1,3,2,4], color: safe>0?"#6ee7b7":"#1e1e2a", sparkColor: "#10b981", sub: "Non-breaking" },
-            ] as {label:string;value:number;spark:number[];color:string;sparkColor:string;sub:string}[]).map(({ label, value, spark, color, sparkColor, sub }, i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08, type: "spring", stiffness: 220, damping: 22 }}
-                whileHover={{ y: -2, scale: 1.01 }}
-              >
-                <MagicCard
-                  className="sp-card h-full"
-                  gradientColor={`${sparkColor}15`}
-                >
-                  <div style={{ padding: "16px 18px 14px" }}>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="sp-label">{label}</span>
-                      {spark.length > 2 && (
-                        <Sparkline data={spark} width={48} height={20} color={sparkColor} />
-                      )}
+              { label: "Endpoints",    value: endpoints.length, sub: `${totalSnaps} snapshots`, spark: runs.map(r => r.endpoints_checked).reverse(), color: "#818cf8", sparkColor: "#6366f1" },
+              { label: "Breaking",     value: breaking, sub: breaking > 0 ? "Action needed" : "All clear", spark: driftTrend, color: breaking > 0 ? "#fca5a5" : "var(--text-3)", sparkColor: "#ef4444" },
+              { label: "Risky",        value: risky,    sub: "Needs review", spark: [0, 0, 1, 1, 2, 1], color: risky > 0 ? "#fcd34d" : "var(--text-3)", sparkColor: "#f59e0b" },
+              { label: "Safe Changes", value: safe,     sub: "Non-breaking",  spark: [1, 2, 1, 3, 2, 4], color: safe > 0 ? "#86efac" : "var(--text-3)", sparkColor: "#22c55e" },
+            ] as { label: string; value: number; sub: string; spark: number[]; color: string; sparkColor: string }[]).map((m, i) => (
+              <motion.div key={m.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07, type: "spring", stiffness: 250, damping: 22 }}>
+                <MagicCard className="card h-full" gradientColor={`${m.sparkColor}20`}>
+                  <div className="p-5 flex flex-col gap-3 h-full">
+                    <div className="flex items-center justify-between">
+                      <span className="eyebrow">{m.label}</span>
+                      {m.spark.length > 2 && <Sparkline data={m.spark} width={56} height={22} color={m.sparkColor} />}
                     </div>
-                    <p style={{ fontSize: 36, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1, color, fontFamily: "JetBrains Mono,monospace" }}>
-                      <NumberTicker value={value} className="" />
+                    <p className="mono" style={{ fontSize: 38, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1, color: m.color }}>
+                      <NumberTicker value={m.value} />
                     </p>
-                    <p style={{ fontSize: 11, color: "#2a2a3a", marginTop: 6 }}>{sub}</p>
+                    <p className="caption">{m.sub}</p>
                   </div>
                 </MagicCard>
               </motion.div>
@@ -140,31 +126,32 @@ export function Dashboard() {
         )}
       </motion.div>
 
-      {/* ── Severity bar ─────────────────────────────── */}
+      {/* ── Severity bar ─────────────────────────────────── */}
       {(breaking + risky + safe) > 0 && (
-        <motion.div variants={child}>
-          <MagicCard className="sp-card" gradientColor="rgba(99,102,241,0.06)">
-            <div style={{ padding: "14px 18px" }}>
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="sp-label">Severity distribution</span>
-                <span style={{ fontSize: 11, color: "#2a2a3a" }}>{breaking+risky+safe} total</span>
+        <motion.div variants={V.item}>
+          <MagicCard className="card" gradientColor="rgba(99,102,241,0.06)">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="eyebrow">Severity Distribution</span>
+                <div className="flex gap-4">
+                  {([["Breaking", breaking, "#fca5a5"], ["Risky", risky, "#fcd34d"], ["Safe", safe, "#86efac"]] as [string, number, string][]).filter(([, v]) => v > 0).map(([l, v, c]) => (
+                    <span key={l} className="flex items-center gap-1.5 caption">
+                      <span className="w-2 h-2 rounded-full" style={{ background: c }} />
+                      <span style={{ color: c, fontWeight: 600 }}>{v}</span>
+                      <span>{l}</span>
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-0.5 overflow-hidden rounded-full" style={{ height: 6, background: "rgba(255,255,255,0.04)" }}>
-                {([["breaking",breaking,"#ef4444"],["risky",risky,"#f97316"],["safe",safe,"#10b981"]] as [string,number,string][]).filter(([,v])=>v>0).map(([k,v,c],i) => (
-                  <motion.div key={k} className="h-full rounded-full"
-                    style={{ background: c }}
+              <div className="flex gap-0.5 rounded-full overflow-hidden" style={{ height: 8, background: "rgba(255,255,255,0.06)" }}>
+                {([["breaking", breaking, "#ef4444"], ["risky", risky, "#f59e0b"], ["safe", safe, "#22c55e"]] as [string, number, string][]).filter(([, v]) => v > 0).map(([key, v, color], i) => (
+                  <motion.div
+                    key={key} className="h-full rounded-full"
+                    style={{ background: color }}
                     initial={{ flex: 0 }}
                     animate={{ flex: v }}
-                    transition={{ duration: 1, delay: i * 0.15, ease: [0.16,1,0.3,1] }}
+                    transition={{ duration: 0.9, delay: i * 0.12, ease: [0.16, 1, 0.3, 1] }}
                   />
-                ))}
-              </div>
-              <div className="flex gap-5 mt-2">
-                {([["Breaking",breaking,"#fc8181"],["Risky",risky,"#fdba74"],["Safe",safe,"#6ee7b7"]] as [string,number,string][]).filter(([,v])=>v>0).map(([l,v,c]) => (
-                  <div key={l} className="flex items-center gap-1.5">
-                    <span style={{ fontSize: 13, fontWeight: 700, color: c, fontFamily: "JetBrains Mono,monospace" }}>{v}</span>
-                    <span style={{ fontSize: 11, color: "#2a2a3a" }}>{l}</span>
-                  </div>
                 ))}
               </div>
             </div>
@@ -172,80 +159,66 @@ export function Dashboard() {
         </motion.div>
       )}
 
-      {/* ── Providers marquee ─────────────────────────  */}
-      {endpoints.length > 0 && (
-        <motion.div variants={child} className="overflow-hidden rounded-xl" style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="flex items-center overflow-hidden py-2">
-            {[...endpoints,...endpoints,...endpoints].map((ep, i) => (
-              <div key={`${ep.id}-${i}`} className="flex items-center gap-2 px-5 flex-shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#6366f1" }} />
-                <span style={{ fontSize: 11, color: "#2a2a3a", whiteSpace: "nowrap", fontFamily: "JetBrains Mono,monospace" }}>{ep.provider}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
+      {/* ── Main grid ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
 
-      {/* ── Main grid ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-
-        {/* Endpoints list (3 col) */}
-        <motion.div variants={child} className="xl:col-span-3 space-y-3">
+        {/* Endpoints list */}
+        <motion.div variants={V.item} className="xl:col-span-2 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="sp-label">Endpoints</span>
-            <span style={{ fontSize: 11, color: "#2a2a3a" }}>{endpoints.filter(e=>e.is_active).length} active</span>
+            <span className="eyebrow">Endpoints</span>
+            <span className="caption">{endpoints.length} monitored</span>
           </div>
 
           {epLoad ? (
-            <div className="space-y-2">{Array.from({length:3}).map((_,i) => <Skel key={i} className="h-16 rounded-xl" />)}</div>
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skel key={i} h="h-[68px]" className="rounded-xl" />)}</div>
           ) : endpoints.length === 0 ? (
-            <div className="sp-card p-10 text-center">
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#383850" }}>No endpoints loaded</p>
-              <p style={{ fontSize: 11, color: "#2a2a3a", marginTop: 4 }}>Trigger a monitor run to populate from config</p>
+            <div className="card p-10 text-center">
+              <p className="heading-sm mb-1">No endpoints yet</p>
+              <p className="body">Trigger a monitor run to load from config</p>
             </div>
           ) : (
             <div className="space-y-2">
               {endpoints.map((ep, i) => {
-                const epDiffs   = allDiffs.filter(d => d.endpoint_id === ep.id);
+                const epDiffs = allDiffs.filter(d => d.endpoint_id === ep.id);
                 const epBreaking = epDiffs.filter(d => d.severity === "breaking").length;
-                const epRisky    = epDiffs.filter(d => d.severity === "risky").length;
-                const healthy    = !epBreaking && !epRisky;
+                const epRisky = epDiffs.filter(d => d.severity === "risky").length;
 
                 return (
-                  <motion.div key={ep.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                  <motion.div key={ep.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}>
                     <Link to={`/endpoints/${ep.id}`}>
-                      <MagicCard className="sp-card" gradientColor={epBreaking ? "rgba(239,68,68,0.06)" : "rgba(99,102,241,0.06)"}>
-                        <div
-                          className="flex items-center gap-4 tr-hover"
-                          style={{ padding: "12px 16px" }}
-                        >
-                          <div className="relative w-2 h-2 flex-shrink-0">
-                            {!healthy && (
+                      <MagicCard className="card" gradientColor={epBreaking ? "rgba(239,68,68,0.07)" : "rgba(99,102,241,0.06)"}>
+                        <div className="flex items-center gap-4 row p-4 !border-b-0 !rounded-xl" style={{ cursor: "pointer" }}>
+                          <div className="relative flex-shrink-0">
+                            {(epBreaking > 0 || epRisky > 0) && (
                               <span
-                                className="absolute inset-0 rounded-full"
-                                style={{ background: epBreaking ? "#ef4444" : "#f97316", animation: "ripple-out 1.8s ease-out infinite", opacity: 0.6 }}
+                                className="absolute inset-0 rounded-full animate-ping opacity-60"
+                                style={{ background: epBreaking > 0 ? "#ef4444" : "#f59e0b" }}
                               />
                             )}
-                            <span className="w-2 h-2 rounded-full block relative z-10"
-                              style={{ background: epBreaking ? "#ef4444" : epRisky ? "#f97316" : ep.latest_snapshot_hash ? "#10b981" : "#2a2a3a" }} />
+                            <span
+                              className="w-2.5 h-2.5 rounded-full block relative"
+                              style={{ background: epBreaking > 0 ? "#ef4444" : epRisky > 0 ? "#f59e0b" : ep.latest_snapshot_hash ? "#22c55e" : "var(--text-3)" }}
+                            />
                           </div>
+
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span style={{ fontSize: 13, fontWeight: 600, color: "#d0d0e0" }}>{ep.name}</span>
-                              {epBreaking > 0 && <span className="sp-badge sp-badge-breaking">{epBreaking} breaking</span>}
-                              {!epBreaking && epRisky > 0 && <span className="sp-badge sp-badge-risky">{epRisky} risky</span>}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="heading-sm">{ep.name}</span>
+                              {epBreaking > 0 && <span className="badge badge-breaking">{epBreaking} breaking</span>}
+                              {!epBreaking && epRisky > 0 && <span className="badge badge-risky">{epRisky} risky</span>}
                             </div>
-                            <p className="mono truncate" style={{ fontSize: 10, color: "#2a2a3a" }}>{ep.url}</p>
+                            <p className="mono caption truncate mt-0.5" style={{ color: "var(--text-3)" }}>{ep.url}</p>
                           </div>
+
                           <div className="flex items-center gap-3 flex-shrink-0">
                             {ep.latest_snapshot_hash && (
-                              <code className="mono" style={{ fontSize: 10, color: "#404058", background: "rgba(255,255,255,0.04)", padding: "2px 6px", borderRadius: 4 }}>
+                              <code className="mono caption" style={{ color: "var(--text-3)", background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: 4 }}>
                                 {ep.latest_snapshot_hash.slice(0, 8)}
                               </code>
                             )}
-                            <span style={{ fontSize: 11, color: "#2a2a3a" }}>{timeAgo(ep.latest_checked_at)}</span>
-                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "#1e1e2a" }}>
-                              <path strokeLinecap="round" d="M9 5l7 7-7 7"/>
+                            <span className="caption">{timeAgo(ep.latest_checked_at)}</span>
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "var(--text-3)", flexShrink: 0 }}>
+                              <path strokeLinecap="round" d="M9 5l7 7-7 7" />
                             </svg>
                           </div>
                         </div>
@@ -258,77 +231,73 @@ export function Dashboard() {
           )}
         </motion.div>
 
-        {/* Activity feed (2 col) */}
-        <motion.div variants={child} className="xl:col-span-2">
+        {/* Activity feed */}
+        <motion.div variants={V.item}>
           <div className="flex items-center justify-between mb-3">
-            <span className="sp-label">Live Activity</span>
-            <Link to="/diffs" style={{ fontSize: 11, color: "#4338ca" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "#818cf8")}
-              onMouseLeave={e => (e.currentTarget.style.color = "#4338ca")}>
-              View all →
-            </Link>
+            <span className="eyebrow">Live Activity</span>
+            <Link to="/diffs" className="caption" style={{ color: "var(--indigo-light)", textDecoration: "none" }}>View all →</Link>
           </div>
-          <MagicCard className="sp-card h-full" gradientColor="rgba(99,102,241,0.05)">
-            <div style={{ padding: "12px 14px" }}>
+          <MagicCard className="card" gradientColor="rgba(99,102,241,0.05)">
+            <div className="p-4">
               <ActivityFeed diffs={allDiffs} endpoints={endpoints} />
             </div>
           </MagicCard>
         </motion.div>
       </div>
 
-      {/* ── Charts + runs ──────────────────────────────── */}
+      {/* ── Chart + Runs ─────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <motion.div variants={child} className="xl:col-span-2">
-          <MagicCard className="sp-card" gradientColor="rgba(99,102,241,0.05)">
-            <div style={{ padding: "18px 20px 14px" }}>
+        <motion.div variants={V.item} className="xl:col-span-2">
+          <MagicCard className="card" gradientColor="rgba(99,102,241,0.04)">
+            <div className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#d0d0e0" }}>Monitor History</p>
-                  <p style={{ fontSize: 11, color: "#2a2a3a", marginTop: 2 }}>Snapshots and drift events per run</p>
+                  <p className="heading-sm">Monitor History</p>
+                  <p className="caption mt-0.5">Drift events and snapshots over time</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  {[["Snapshots","#10b981"],["Total Diffs","#6366f1"]].map(([l,c]) => (
-                    <div key={l} className="flex items-center gap-1.5">
-                      <div style={{ width: 20, height: 2, background: c as string, borderRadius: 2 }} />
-                      <span style={{ fontSize: 10, color: "#2a2a3a" }}>{l}</span>
+                  {[["Snapshots", "#22c55e"], ["Diffs", "#6366f1"]].map(([l, c]) => (
+                    <div key={l} className="flex items-center gap-2">
+                      <div style={{ width: 16, height: 2, background: c as string, borderRadius: 2 }} />
+                      <span className="caption">{l}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              {runsLoad ? <Skel className="h-44" /> : <DriftChart runs={runs} />}
+              {runsLoad ? <Skel h="h-44" /> : <DriftChart runs={runs} />}
             </div>
           </MagicCard>
         </motion.div>
 
-        <motion.div variants={child}>
+        <motion.div variants={V.item}>
           <div className="flex items-center justify-between mb-3">
-            <span className="sp-label">Recent Runs</span>
+            <span className="eyebrow">Recent Runs</span>
           </div>
-          <MagicCard className="sp-card" gradientColor="rgba(99,102,241,0.05)">
+          <MagicCard className="card" gradientColor="rgba(99,102,241,0.04)">
             {runsLoad ? (
-              <div style={{ padding: 14 }} className="space-y-2">{Array.from({length:5}).map((_,i)=><Skel key={i} className="h-10 rounded-lg"/>)}</div>
+              <div className="p-4 space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skel key={i} h="h-10" />)}</div>
             ) : runs.length === 0 ? (
-              <p style={{ padding: 28, textAlign: "center", fontSize: 12, color: "#2a2a3a" }}>No runs yet</p>
+              <p className="body p-6 text-center">No runs yet</p>
             ) : (
               <div>
-                {runs.slice(0, 8).map((run, i) => {
+                {runs.slice(0, 8).map((run) => {
                   const cfg = STATUS[run.status];
-                  const dur = run.finished_at ? `${Math.round((new Date(run.finished_at).getTime() - new Date(run.started_at).getTime()) / 1000)}s` : null;
+                  const dur = run.finished_at
+                    ? `${Math.round((new Date(run.finished_at).getTime() - new Date(run.started_at).getTime()) / 1000)}s`
+                    : null;
                   return (
-                    <motion.div key={run.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
-                      className="flex items-center gap-3 tr-hover"
-                      style={{ padding: "10px 16px", borderBottom: i < runs.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot }} />
+                    <div key={run.id} className="row flex items-center gap-3 px-4 py-2.5">
+                      <span className={`w-2 h-2 rounded-full ${cfg.dot} flex-shrink-0`} />
                       <div className="flex-1">
-                        <span style={{ fontSize: 12, fontWeight: 600, color: cfg.color }}>{cfg.label}</span>
-                        <span style={{ fontSize: 10, color: "#2a2a3a", marginLeft: 8 }}>{run.endpoints_checked} eps · {run.snapshots_created} snaps{run.diffs_detected > 0 ? ` · ` : ""}</span>
-                        {run.diffs_detected > 0 && <span style={{ fontSize: 10, color: "#fc8181" }}>{run.diffs_detected} diffs</span>}
+                        <span className="body" style={{ color: cfg.color, fontWeight: 500, fontSize: 12 }}>{cfg.label}</span>
+                        <span className="caption ml-2">{run.endpoints_checked}ep · {run.snapshots_created}snaps</span>
+                        {run.diffs_detected > 0 && <span style={{ fontSize: 11, color: "#fca5a5", marginLeft: 6 }}>⚡ {run.diffs_detected}</span>}
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span style={{ fontSize: 10, color: "#2a2a3a" }}>{timeAgo(run.started_at)}</span>
-                        {dur && <span className="mono" style={{ fontSize: 9, color: "#1e1e2a" }}>{dur}</span>}
+                      <div className="text-right">
+                        <p className="caption">{timeAgo(run.started_at)}</p>
+                        {dur && <p className="mono" style={{ fontSize: 10, color: "var(--text-3)" }}>{dur}</p>}
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
@@ -337,68 +306,65 @@ export function Dashboard() {
         </motion.div>
       </div>
 
-      {/* ── Recent diffs table ──────────────────────────── */}
-      <motion.div variants={child}>
+      {/* ── Recent diffs ─────────────────────────────────── */}
+      <motion.div variants={V.item}>
         <div className="flex items-center justify-between mb-3">
-          <div>
-            <span className="sp-label">Recent Diffs</span>
-            {allDiffs.length > 0 && <span style={{ fontSize: 11, color: "#2a2a3a", marginLeft: 8 }}>{allDiffs.length} events</span>}
+          <div className="flex items-center gap-3">
+            <span className="eyebrow">Recent Diffs</span>
+            {allDiffs.length > 0 && <span className="badge badge-risky">{allDiffs.length} events</span>}
           </div>
           <Link to="/diffs">
-            <motion.div
+            <motion.span
+              className="btn btn-secondary caption"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 cursor-pointer"
-              style={{ border: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "#383850" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.color = "#d0d0e0"; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.15)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.color = "#383850"; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
+              style={{ cursor: "pointer" }}
             >
-              View all <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" d="M9 5l7 7-7 7"/></svg>
-            </motion.div>
+              View all →
+            </motion.span>
           </Link>
         </div>
 
-        <MagicCard className="sp-card overflow-hidden" gradientColor="rgba(99,102,241,0.04)">
+        <MagicCard className="card overflow-hidden" gradientColor="rgba(99,102,241,0.04)">
           {allDiffs.length === 0 ? (
-            <div className="flex flex-col items-center py-12 gap-2">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }}>
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={1.8}><path strokeLinecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div className="flex flex-col items-center py-12 gap-3">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#22c55e" strokeWidth={1.8}><path strokeLinecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#383850" }}>Schema stable</p>
-              <p style={{ fontSize: 11, color: "#2a2a3a" }}>No drift detected across monitored endpoints</p>
+              <p className="heading-sm">Schema stable</p>
+              <p className="body">No drift detected</p>
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-[80px_130px_1fr_150px_70px_70px] gap-3 px-5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                {["Severity","Change","Path","Endpoint","Old","New"].map(h => <span key={h} className="sp-label">{h}</span>)}
+            <div>
+              <div className="grid grid-cols-[80px_130px_1fr_140px_65px_65px] gap-3 px-5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                {["Severity", "Change", "Path", "Endpoint", "Old", "New"].map(h => <span key={h} className="eyebrow">{h}</span>)}
               </div>
               {allDiffs.slice(0, 10).map((d, i) => {
                 const ep = endpoints.find(e => e.id === d.endpoint_id);
                 return (
                   <motion.div key={d.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                    className="grid grid-cols-[80px_130px_1fr_150px_70px_70px] gap-3 px-5 py-2.5 tr-hover"
-                    style={{ borderBottom: "1px solid rgba(255,255,255,0.025)" }}>
+                    className="row grid grid-cols-[80px_130px_1fr_140px_65px_65px] gap-3 px-5 py-3">
                     <div className="self-center">
-                      <span className={`sp-badge sp-badge-${d.severity}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${d.severity==="breaking"?"bg-red-400":d.severity==="risky"?"bg-orange-400":"bg-emerald-400"}`} />
+                      <span className={`badge badge-${d.severity}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${d.severity === "breaking" ? "dot-red" : d.severity === "risky" ? "dot-yellow" : "dot-green"}`} />
                         {d.severity}
                       </span>
                     </div>
-                    <span className="self-center mono" style={{ fontSize: 10, color: "#505068" }}>{d.change_type}</span>
-                    <code className="self-center mono truncate" style={{ fontSize: 10, color: "#6366f1" }}>{d.path}</code>
+                    <span className="mono self-center" style={{ fontSize: 11, color: "var(--text-2)" }}>{d.change_type}</span>
+                    <code className="mono self-center truncate" style={{ fontSize: 11, color: "var(--indigo-light)" }}>{d.path}</code>
                     {ep ? (
-                      <Link to={`/endpoints/${ep.id}`} className="self-center truncate" style={{ fontSize: 11, color: "#383850" }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "#818cf8")}
-                        onMouseLeave={e => (e.currentTarget.style.color = "#383850")}>
+                      <Link to={`/endpoints/${ep.id}`} className="self-center truncate body" style={{ fontSize: 12, color: "var(--text-2)" }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "var(--indigo-light)")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "var(--text-2)")}>
                         {ep.name}
                       </Link>
-                    ) : <span className="self-center" style={{ fontSize: 11, color: "#1e1e2a" }}>—</span>}
-                    <span className="self-center mono" style={{ fontSize: 10, color: "#2a2a3a" }}>{d.old_type ?? "—"}</span>
-                    <span className="self-center mono" style={{ fontSize: 10, color: "#2a2a3a" }}>{d.new_type ?? "—"}</span>
+                    ) : <span className="self-center caption">—</span>}
+                    <span className="mono self-center caption">{d.old_type ?? "—"}</span>
+                    <span className="mono self-center caption">{d.new_type ?? "—"}</span>
                   </motion.div>
                 );
               })}
-            </>
+            </div>
           )}
         </MagicCard>
       </motion.div>

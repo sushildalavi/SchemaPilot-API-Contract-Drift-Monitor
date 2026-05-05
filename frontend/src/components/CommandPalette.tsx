@@ -82,8 +82,8 @@ export function CommandPalette({ open, onClose }: Props) {
               style={{ boxShadow: "0 0 0 1px rgba(99,102,241,0.2), 0 32px 80px -8px rgba(0,0,0,0.9), 0 0 60px rgba(99,102,241,0.08)" }}
             >
               {/* Search input */}
-              <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#475569" strokeWidth={2.2} className="flex-shrink-0">
+              <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: "1px solid var(--border)" }}>
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--text-3)" strokeWidth={2.2} className="flex-shrink-0">
                   <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>
                 </svg>
                 <input
@@ -92,15 +92,16 @@ export function CommandPalette({ open, onClose }: Props) {
                   placeholder="Search endpoints, navigate…"
                   value={query}
                   onChange={e => { setQuery(e.target.value); setSelected(0); }}
-                  className="flex-1 bg-transparent text-[13px] text-slate-200 placeholder-slate-600 outline-none"
+                  style={{ flex: 1, background: "transparent", fontSize: 13, color: "var(--text-1)", outline: "none", border: "none" }}
+                  placeholder-style={{ color: "var(--text-3)" }}
                 />
-                <kbd className="text-[10px] text-slate-700 bg-white/4 border border-white/8 px-1.5 py-0.5 rounded font-mono">ESC</kbd>
+                <kbd style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--text-3)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-2)", padding: "2px 6px", borderRadius: 4 }}>ESC</kbd>
               </div>
 
               {/* Results */}
               <div className="max-h-80 overflow-y-auto">
                 {actions.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-[12px] text-slate-600">No results for "{query}"</div>
+                  <div className="px-4 py-8 text-center caption">No results for "{query}"</div>
                 ) : (
                   <div className="py-1.5">
                     {actions.map((item, i) => (
@@ -111,15 +112,15 @@ export function CommandPalette({ open, onClose }: Props) {
                         onMouseEnter={() => setSelected(i)}
                         onClick={() => go(i)}
                       >
-                        <span className={`text-base flex-shrink-0 ${item.type === "endpoint" ? (item.icon === "●" ? "text-emerald-400" : "text-slate-600") : "text-indigo-400"}`}>
+                        <span style={{ fontSize: 14, flexShrink: 0, color: item.type === "endpoint" ? (item.icon === "●" ? "#86efac" : "var(--text-3)") : "var(--indigo-light)" }}>
                           {item.icon}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[13px] text-slate-200 font-medium">{item.label}</span>
-                          {item.sub && <span className="ml-2 text-[11px] text-slate-600">{item.sub}</span>}
+                          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-1)" }}>{item.label}</span>
+                          {item.sub && <span style={{ marginLeft: 8, fontSize: 11, color: "var(--text-3)" }}>{item.sub}</span>}
                         </div>
                         {selected === i && (
-                          <kbd className="text-[10px] text-indigo-400 bg-indigo-500/15 border border-indigo-500/20 px-1.5 py-0.5 rounded font-mono">↵</kbd>
+                          <kbd style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 10, color: "var(--indigo-light)", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)", padding: "1px 5px", borderRadius: 4 }}>↵</kbd>
                         )}
                       </div>
                     ))}
@@ -128,11 +129,11 @@ export function CommandPalette({ open, onClose }: Props) {
               </div>
 
               {/* Footer */}
-              <div className="px-4 py-2 flex items-center gap-4" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+              <div className="px-4 py-2 flex items-center gap-4" style={{ borderTop: "1px solid var(--border)" }}>
                 {[["↑↓", "navigate"], ["↵", "open"], ["ESC", "close"]].map(([k, l]) => (
                   <div key={k} className="flex items-center gap-1.5">
-                    <kbd className="text-[10px] text-slate-600 bg-white/4 border border-white/8 px-1.5 py-0.5 rounded font-mono">{k}</kbd>
-                    <span className="text-[10px] text-slate-700">{l}</span>
+                    <kbd style={{ fontFamily: "JetBrains Mono,monospace", fontSize: 9, color: "var(--text-3)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-2)", padding: "1px 5px", borderRadius: 4 }}>{k}</kbd>
+                    <span className="caption">{l}</span>
                   </div>
                 ))}
               </div>
