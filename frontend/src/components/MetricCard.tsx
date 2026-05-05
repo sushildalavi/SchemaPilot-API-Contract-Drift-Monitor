@@ -1,61 +1,84 @@
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { Sparkline } from "./Sparkline";
 
 interface Props {
   label: string;
   value: number;
   sub?: string;
-  color?: "default" | "red" | "yellow" | "green" | "indigo";
+  trend?: number[];
+  delta?: number;
+  color?: "default" | "red" | "amber" | "green" | "indigo";
   icon?: React.ReactNode;
 }
 
-const ACCENT: Record<string, string> = {
-  default: "text-slate-100",
-  red: "text-red-400",
-  yellow: "text-amber-400",
-  green: "text-emerald-400",
-  indigo: "text-indigo-400",
+const COLORS = {
+  default: { text: "text-white", spark: "#6366f1", glow: "" },
+  red:     { text: "text-red-400",     spark: "#ef4444", glow: "hover:shadow-red-500/10" },
+  amber:   { text: "text-amber-400",   spark: "#f59e0b", glow: "hover:shadow-amber-500/10" },
+  green:   { text: "text-emerald-400", spark: "#10b981", glow: "hover:shadow-emerald-500/10" },
+  indigo:  { text: "text-indigo-400",  spark: "#6366f1", glow: "hover:shadow-indigo-500/10" },
 };
 
-const GLOW: Record<string, string> = {
-  default: "",
-  red: "shadow-red-500/10",
-  yellow: "shadow-amber-500/10",
-  green: "shadow-emerald-500/10",
-  indigo: "shadow-indigo-500/10",
-};
-
-function useCountUp(target: number, duration = 800) {
-  const [count, setCount] = useState(0);
-  const prev = useRef(0);
+function useCountUp(to: number, dur = 900) {
+  const [val, setVal] = useState(0);
+  const ref = useRef(0);
   useEffect(() => {
-    const start = prev.current;
-    const diff = target - start;
-    if (diff === 0) return;
-    const startTime = performance.now();
-    const frame = (now: number) => {
-      const progress = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(start + diff * eased));
-      if (progress < 1) requestAnimationFrame(frame);
-      else prev.current = target;
+    const from = ref.current;
+    const d = to - from;
+    if (!d) return;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - t0) / dur, 1);
+      const e = 1 - Math.pow(1 - p, 4);
+      setVal(Math.round(from + d * e));
+      if (p < 1) requestAnimationFrame(tick);
+      else ref.current = to;
     };
-    requestAnimationFrame(frame);
-  }, [target, duration]);
-  return count;
+    requestAnimationFrame(tick);
+  }, [to, dur]);
+  return val;
 }
 
-export function MetricCard({ label, value, sub, color = "default", icon }: Props) {
+export function MetricCard({ label, value, sub, trend, delta, color = "default", icon }: Props) {
+  const c = COLORS[color];
   const count = useCountUp(value);
+  const isUp = delta !== undefined && delta > 0;
+
+
   return (
-    <div className={`card p-5 flex flex-col gap-3 transition-all duration-200 hover:border-slate-700 shadow-xl ${GLOW[color]}`}>
+    <motion.div
+      whileHover={{ y: -2, scale: 1.005 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      className={`glass-hover rounded-2xl p-5 flex flex-col gap-3 hover:shadow-2xl ${c.glow}`}
+    >
       <div className="flex items-center justify-between">
-        <span className="label">{label}</span>
-        {icon && <span className="text-slate-600">{icon}</span>}
+        <span className="section-label">{label}</span>
+        {icon && <span className="text-slate-700">{icon}</span>}
       </div>
-      <span className={`text-4xl font-bold tracking-tight flash-in ${ACCENT[color]}`}>
-        {count.toLocaleString()}
-      </span>
-      {sub && <span className="text-xs text-slate-600">{sub}</span>}
-    </div>
+
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <motion.span
+            key={count}
+            className={`text-4xl font-bold tracking-tight tabular-nums ${c.text}`}
+          >
+            {count.toLocaleString()}
+          </motion.span>
+          {delta !== undefined && delta !== 0 && (
+            <span className={`ml-2 text-xs font-semibold ${isUp ? "text-emerald-400" : "text-red-400"}`}>
+              {isUp ? "↑" : "↓"}{Math.abs(delta)}
+            </span>
+          )}
+        </div>
+        {trend && trend.length > 2 && (
+          <div className="opacity-80">
+            <Sparkline data={trend} width={64} height={28} color={c.spark} />
+          </div>
+        )}
+      </div>
+
+      {sub && <span className="text-[11px] text-slate-600 -mt-1">{sub}</span>}
+    </motion.div>
   );
 }
