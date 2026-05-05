@@ -80,7 +80,7 @@ curl -X POST http://localhost:8080/api/monitor/run-once \
   -H "X-SCHEMAPILOT-ADMIN-SECRET: dev-secret"
 ```
 
-Open **http://localhost:5173** — the dashboard shows 4 monitored endpoints with their latest snapshot hashes.
+Open **http://localhost:5174** — the dashboard shows 4 monitored endpoints with their latest snapshot hashes.
 
 The **Drift Simulator** service rotates its JSON schema every 10 minutes, so you'll see breaking diffs appear without waiting weeks for a real API to change.
 
