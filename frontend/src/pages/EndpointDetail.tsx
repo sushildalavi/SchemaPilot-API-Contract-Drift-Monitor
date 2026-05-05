@@ -3,15 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { api, QUERY_KEYS } from "../api/client";
-import { ChangelogPanel } from "../components/ChangelogPanel";
+import { MagicCard } from "../components/MagicCard";
+import { BorderBeam } from "../components/BorderBeam";
+import { NumberTicker } from "../components/NumberTicker";
+import { Sparkline } from "../components/Sparkline";
 import { DiffTable } from "../components/DiffTable";
 import { SchemaTimeline } from "../components/SchemaTimeline";
-import { Sparkline } from "../components/Sparkline";
+import { ChangelogPanel } from "../components/ChangelogPanel";
 
 type Tab = "diffs" | "timeline" | "schema" | "changelog";
 
 function timeAgo(dt: string | null) {
-  if (!dt) return "never";
+  if (!dt) return "–";
   const m = Math.floor((Date.now() - new Date(dt).getTime()) / 60000);
   if (m < 1) return "just now";
   if (m < 60) return `${m}m ago`;
@@ -20,30 +23,10 @@ function timeAgo(dt: string | null) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-const TYPE_COLOR: Record<string, string> = {
-  string: "text-emerald-400",
-  integer: "text-amber-400",
-  number: "text-amber-400",
-  boolean: "text-pink-400",
-  array: "text-blue-400",
-  object: "text-violet-400",
-  null: "text-slate-500",
-  mixed: "text-orange-400",
-  unknown: "text-slate-600",
-};
-const TYPE_BG: Record<string, string> = {
-  string: "bg-emerald-500/8 border-emerald-500/15",
-  integer: "bg-amber-500/8 border-amber-500/15",
-  number: "bg-amber-500/8 border-amber-500/15",
-  boolean: "bg-pink-500/8 border-pink-500/15",
-  array: "bg-blue-500/8 border-blue-500/15",
-  object: "bg-violet-500/8 border-violet-500/15",
-};
-
 const TABS: { id: Tab; label: string }[] = [
   { id: "diffs", label: "Diffs" },
   { id: "timeline", label: "Timeline" },
-  { id: "schema", label: "Schema" },
+  { id: "schema", label: "Schema Fields" },
   { id: "changelog", label: "Changelog" },
 ];
 
@@ -52,31 +35,17 @@ export function EndpointDetail() {
   const epId = id!;
   const [tab, setTab] = useState<Tab>("diffs");
 
-  const { data: endpoint, isLoading } = useQuery({
-    queryKey: QUERY_KEYS.endpoint(epId),
-    queryFn: () => api.endpoints.get(epId),
-    staleTime: 30_000,
-  });
-
-  const { data: snapshots = [] } = useQuery({
-    queryKey: QUERY_KEYS.snapshots(epId),
-    queryFn: () => api.endpoints.snapshots(epId),
-    staleTime: 30_000,
-  });
-
-  const { data: diffs = [] } = useQuery({
-    queryKey: QUERY_KEYS.diffs(epId),
-    queryFn: () => api.endpoints.diffs(epId),
-    staleTime: 30_000,
-  });
+  const { data: endpoint, isLoading } = useQuery({ queryKey: QUERY_KEYS.endpoint(epId), queryFn: () => api.endpoints.get(epId), staleTime: 30_000 });
+  const { data: snapshots = [] } = useQuery({ queryKey: QUERY_KEYS.snapshots(epId), queryFn: () => api.endpoints.snapshots(epId), staleTime: 30_000 });
+  const { data: diffs = [] } = useQuery({ queryKey: QUERY_KEYS.diffs(epId), queryFn: () => api.endpoints.diffs(epId), staleTime: 30_000 });
 
   const diffSnapshotIds = new Set(diffs.map(d => d.new_snapshot_id));
-  const latestSnapshot = snapshots[0] ?? null;
-
+  const latestSnapshot  = snapshots[0] ?? null;
   const breaking = diffs.filter(d => d.severity === "breaking").length;
   const risky    = diffs.filter(d => d.severity === "risky").length;
   const safe     = diffs.filter(d => d.severity === "safe").length;
   const rts      = snapshots.filter(s => !s.fetch_error).map(s => s.response_time_ms).reverse();
+  const avgMs    = rts.length ? Math.round(rts.reduce((a,b) => a+b, 0) / rts.length) : 0;
 
   const schemaFields = (latestSnapshot?.normalized_schema_json as Array<{
     path: string; type: string; required: boolean; nullable: boolean;
@@ -91,80 +60,87 @@ export function EndpointDetail() {
   };
 
   if (isLoading) return (
-    <div className="space-y-5">
-      <div className="skeleton h-7 w-44 rounded-xl" />
-      <div className="skeleton h-48 rounded-2xl" />
+    <div className="space-y-4">
+      <div className="skeleton h-6 w-40 rounded-lg" />
+      <div className="skeleton h-44 rounded-2xl" />
     </div>
   );
-  if (!endpoint) return <p className="text-sm text-red-400">Endpoint not found.</p>;
+  if (!endpoint) return <p style={{ fontSize: 13, color: "#fc8181" }}>Endpoint not found.</p>;
 
   return (
-    <motion.div className="space-y-6 max-w-7xl" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, type: "spring", stiffness: 200 }}>
+    <motion.div
+      className="space-y-5"
+      style={{ maxWidth: 1400 }}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+    >
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-[12px] text-slate-600">
-        <Link to="/" className="hover:text-slate-400 transition-colors">Dashboard</Link>
-        <span>›</span>
-        <span className="text-slate-400">{endpoint.name}</span>
+      <div className="flex items-center gap-2 mono" style={{ fontSize: 11, color: "#2a2a3a" }}>
+        <Link to="/" onMouseEnter={e=>(e.currentTarget.style.color="#818cf8")} onMouseLeave={e=>(e.currentTarget.style.color="#2a2a3a")}>overview</Link>
+        <span>/</span>
+        <span style={{ color: "#404058" }}>{endpoint.name}</span>
       </div>
 
-      {/* Hero card */}
-      <div className="glass rounded-2xl overflow-hidden">
-        {/* Gradient top strip */}
-        <div className="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-pink-500 opacity-60" />
+      {/* Hero */}
+      <div className="sp-card relative overflow-hidden">
+        <div style={{ height: 2, background: "linear-gradient(to right, #6366f1, #8b5cf6, #a855f7, transparent)" }} />
+        <BorderBeam size={300} duration={12} colorFrom="#6366f1" colorTo="#a855f7" borderWidth={1} />
 
-        <div className="p-6">
+        <div style={{ padding: "20px 24px 18px" }}>
           <div className="flex items-start justify-between gap-6 flex-wrap">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="heading">{endpoint.name}</h1>
-                <div className="flex gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-lg border"
-                    style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)", color: "#94a3b8" }}>
-                    {endpoint.provider}
-                  </span>
-                  <span className="mono text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-lg border"
-                    style={{ background: "rgba(99,102,241,0.08)", borderColor: "rgba(99,102,241,0.15)", color: "#818cf8" }}>
-                    {endpoint.method}
-                  </span>
-                </div>
+              <div className="flex items-center gap-3 flex-wrap mb-1.5">
+                <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.03em", color: "#f0f0f0", lineHeight: 1 }}>
+                  {endpoint.name}
+                </h1>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#505068", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  {endpoint.provider}
+                </span>
+                <code style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", color: "#818cf8", fontFamily: "JetBrains Mono,monospace", textTransform: "uppercase" }}>
+                  {endpoint.method}
+                </code>
               </div>
-              <a href={endpoint.url} target="_blank" rel="noreferrer"
-                className="text-[12px] text-indigo-400/60 hover:text-indigo-300 transition-colors truncate max-w-xl block mt-1.5">
+              <a href={endpoint.url} target="_blank" rel="noreferrer" className="mono block truncate"
+                style={{ fontSize: 11, color: "#404058", maxWidth: 500, marginBottom: 10 }}
+                onMouseEnter={e=>(e.currentTarget.style.color="#818cf8")} onMouseLeave={e=>(e.currentTarget.style.color="#404058")}>
                 {endpoint.url}
               </a>
               {endpoint.latest_snapshot_hash && (
-                <div className="flex items-center gap-3 mt-3">
-                  <span className="text-[11px] text-slate-600">Current hash</span>
-                  <code className="mono text-[11px] text-indigo-400/70">{endpoint.latest_snapshot_hash.slice(0, 24)}</code>
-                  <span className="text-[11px] text-slate-700">· {timeAgo(endpoint.latest_checked_at)}</span>
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 11, color: "#2a2a3a" }}>Hash</span>
+                  <code className="mono" style={{ fontSize: 10, color: "#6366f1", background: "rgba(99,102,241,0.08)", padding: "2px 7px", borderRadius: 4 }}>
+                    {endpoint.latest_snapshot_hash.slice(0, 20)}
+                  </code>
+                  <span style={{ fontSize: 11, color: "#2a2a3a" }}>·</span>
+                  <span style={{ fontSize: 11, color: "#2a2a3a" }}>{timeAgo(endpoint.latest_checked_at)}</span>
                 </div>
               )}
             </div>
-
-            {/* Response time sparkline */}
-            {rts.length > 1 && (
-              <div className="flex flex-col items-end gap-1">
-                <span className="section-label">Response time</span>
-                <Sparkline data={rts} width={120} height={40} color={rts[rts.length-1] > 1000 ? "#f59e0b" : "#10b981"} />
-                <span className="text-[11px] text-slate-600">{rts[rts.length-1]}ms latest</span>
+            {rts.length > 2 && (
+              <div className="text-right flex-shrink-0">
+                <p className="sp-label mb-1">Response Time</p>
+                <Sparkline data={rts} width={120} height={36} color={avgMs > 1000 ? "#f97316" : "#10b981"} />
+                <p className="mono" style={{ fontSize: 10, color: "#2a2a3a", marginTop: 3 }}>{avgMs}ms avg</p>
               </div>
             )}
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mt-6 pt-5"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          {/* Stats row */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 pt-4 mt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
             {[
-              { label: "Snapshots", val: snapshots.length, color: "text-indigo-400" },
-              { label: "Breaking", val: breaking, color: breaking>0 ? "text-red-400" : "text-slate-500" },
-              { label: "Risky", val: risky, color: risky>0 ? "text-amber-400" : "text-slate-500" },
-              { label: "Safe", val: safe, color: safe>0 ? "text-emerald-400" : "text-slate-500" },
-              { label: "Fields", val: schemaFields.length, color: "text-violet-400" },
-              { label: "Avg ms", val: rts.length ? Math.round(rts.reduce((a,b)=>a+b,0)/rts.length) : 0, color: "text-sky-400" },
+              { label: "Snapshots", val: snapshots.length, color: "#818cf8" },
+              { label: "Breaking",  val: breaking, color: breaking > 0 ? "#fc8181" : "#2a2a3a" },
+              { label: "Risky",     val: risky,    color: risky > 0 ? "#fdba74" : "#2a2a3a" },
+              { label: "Safe",      val: safe,     color: safe > 0 ? "#6ee7b7" : "#2a2a3a" },
+              { label: "Fields",    val: schemaFields.length, color: "#c4b5fd" },
+              { label: "Avg ms",    val: avgMs,    color: avgMs > 1000 ? "#fdba74" : "#93c5fd" },
             ].map(({ label, val, color }) => (
               <div key={label}>
-                <span className="section-label block mb-1">{label}</span>
-                <span className={`text-xl font-bold tabular-nums ${color}`}>{val}</span>
+                <p className="sp-label mb-1">{label}</p>
+                <p className="mono" style={{ fontSize: 20, fontWeight: 700, color, letterSpacing: "-0.02em" }}>
+                  <NumberTicker value={val} />
+                </p>
               </div>
             ))}
           </div>
@@ -175,17 +151,20 @@ export function EndpointDetail() {
       <div className="flex items-center gap-1" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium transition-colors ${tab === t.id ? "text-white" : "text-slate-500 hover:text-slate-300"}`}>
+            className="relative flex items-center gap-2 px-4 py-2.5 transition-colors duration-150"
+            style={{ fontSize: 13, fontWeight: 500, color: tab === t.id ? "#f0f0f0" : "#383850", background: "none", border: "none", cursor: "pointer" }}
+            onMouseEnter={e => { if (tab !== t.id) (e.currentTarget as HTMLButtonElement).style.color = "#909090"; }}
+            onMouseLeave={e => { if (tab !== t.id) (e.currentTarget as HTMLButtonElement).style.color = "#383850"; }}
+          >
             {t.label}
             {tabCount[t.id] !== undefined && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
-                tab === t.id ? "bg-indigo-500/20 text-indigo-400" : "bg-white/5 text-slate-600"
-              }`}>
+              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, fontWeight: 600, background: tab === t.id ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.04)", color: tab === t.id ? "#818cf8" : "#2a2a3a" }}>
                 {tabCount[t.id]}
               </span>
             )}
             {tab === t.id && (
-              <motion.div layoutId="ep-tab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full" />
+              <motion.div layoutId="ep-tab-line" className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
+                style={{ background: "linear-gradient(to right, #6366f1, #8b5cf6)" }} />
             )}
           </button>
         ))}
@@ -193,82 +172,69 @@ export function EndpointDetail() {
 
       {/* Tab content */}
       <AnimatePresence mode="wait">
-        <motion.div key={tab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
+        <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
           {tab === "diffs" && (
-            <div className="glass rounded-2xl overflow-hidden">
+            <MagicCard className="sp-card overflow-hidden" gradientColor="rgba(99,102,241,0.05)">
               <DiffTable diffs={diffs} />
-            </div>
+            </MagicCard>
           )}
 
           {tab === "timeline" && (
-            <div className="glass rounded-2xl p-6">
-              <SchemaTimeline snapshots={snapshots} diffSnapshotIds={diffSnapshotIds} />
-            </div>
+            <MagicCard className="sp-card" gradientColor="rgba(99,102,241,0.05)">
+              <div style={{ padding: 20 }}>
+                <SchemaTimeline snapshots={snapshots} diffSnapshotIds={diffSnapshotIds} />
+              </div>
+            </MagicCard>
           )}
 
           {tab === "schema" && (
-            <div className="glass rounded-2xl overflow-hidden">
+            <MagicCard className="sp-card overflow-hidden" gradientColor="rgba(99,102,241,0.04)">
               {schemaFields.length === 0 ? (
-                <p className="text-[13px] text-slate-600 p-8 text-center">No schema data available yet</p>
+                <p style={{ padding: 28, textAlign: "center", fontSize: 13, color: "#2a2a3a" }}>No schema yet</p>
               ) : (
-                <div>
-                  <div className="grid grid-cols-[1fr_90px_65px_65px_180px_180px] gap-3 px-5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                    {["Path","Type","Required","Nullable","Enum Values","Example"].map(h => <span key={h} className="section-label">{h}</span>)}
+                <>
+                  <div className="grid grid-cols-[1fr_80px_65px_65px_160px_160px] gap-3 px-5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    {["Field Path","Type","Req","Nullable","Enum Values","Example"].map(h => <span key={h} className="sp-label">{h}</span>)}
                   </div>
                   {schemaFields.map((f, i) => {
-                    const tc = TYPE_COLOR[f.type] ?? "text-slate-400";
-                    const bg = TYPE_BG[f.type] ?? "bg-white/4 border-white/8";
-                    const depthPadding = (f.path.split(".").length - 1) * 12;
+                    const depth = (f.path.split(".").length - 1) * 14;
+                    const tc = { string:"type-string", integer:"type-integer", number:"type-number", boolean:"type-boolean", array:"type-array", object:"type-object", null:"type-null", mixed:"type-mixed" }[f.type] ?? "type-null";
                     return (
-                      <motion.div key={f.path} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.015 }}
-                        className="grid grid-cols-[1fr_90px_65px_65px_180px_180px] gap-3 px-5 py-2.5 transition-colors"
-                        style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                        <div className="flex items-center self-center" style={{ paddingLeft: `${depthPadding}px` }}>
-                          {depthPadding > 0 && <span className="text-slate-700 mr-1.5 text-[10px]">└</span>}
-                          <code className={`mono text-[11px] ${f.path.includes("[*]") ? "text-blue-300/70" : "text-indigo-300/80"}`}>{f.path.split(".").at(-1)}</code>
+                      <motion.div key={f.path} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.01 }}
+                        className="grid grid-cols-[1fr_80px_65px_65px_160px_160px] gap-3 px-5 py-2.5 tr-hover"
+                        style={{ borderBottom: "1px solid rgba(255,255,255,0.025)" }}>
+                        <div className="flex items-center self-center" style={{ paddingLeft: depth }}>
+                          {depth > 0 && <span style={{ color: "#2a2a3a", marginRight: 4, fontSize: 10 }}>└</span>}
+                          <code className="mono" style={{ fontSize: 10, color: f.path.includes("[*]") ? "#93c5fd" : "#6366f1" }}>
+                            {f.path.split(".").at(-1)}
+                          </code>
                         </div>
-                        <div className="self-center">
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${bg} ${tc}`}>{f.type}</span>
+                        <div className="self-center"><span className={`type-pill ${tc}`}>{f.type}</span></div>
+                        <span className="self-center mono" style={{ fontSize: 10, color: f.required ? "#6ee7b7" : "#2a2a3a" }}>{f.required ? "yes" : "no"}</span>
+                        <span className="self-center mono" style={{ fontSize: 10, color: f.nullable ? "#fcd34d" : "#2a2a3a" }}>{f.nullable ? "yes" : "no"}</span>
+                        <div className="self-center flex gap-1 flex-wrap">
+                          {f.enum_values?.length ? f.enum_values.slice(0,3).map(v => (
+                            <span key={String(v)} className="mono" style={{ fontSize: 9, color: "#c4b5fd", background: "rgba(196,181,253,0.08)", border: "1px solid rgba(196,181,253,0.15)", padding: "1px 5px", borderRadius: 3 }}>{String(v)}</span>
+                          )) : <span style={{ fontSize: 10, color: "#1e1e2a" }}>—</span>}
+                          {(f.enum_values?.length ?? 0) > 3 && <span style={{ fontSize: 9, color: "#2a2a3a" }}>+{(f.enum_values?.length ?? 0) - 3}</span>}
                         </div>
-                        <span className={`text-[11px] self-center font-medium ${f.required ? "text-emerald-400" : "text-slate-600"}`}>
-                          {f.required ? "yes" : "no"}
-                        </span>
-                        <span className={`text-[11px] self-center font-medium ${f.nullable ? "text-amber-400" : "text-slate-600"}`}>
-                          {f.nullable ? "yes" : "no"}
-                        </span>
-                        <span className="text-[10px] text-slate-600 self-center truncate">
-                          {f.enum_values?.length ? (
-                            <span className="flex gap-1 flex-wrap">
-                              {f.enum_values.slice(0,3).map(v => (
-                                <span key={String(v)} className="bg-violet-500/10 text-violet-400 border border-violet-500/15 px-1.5 py-0.5 rounded">
-                                  {String(v)}
-                                </span>
-                              ))}
-                              {f.enum_values.length > 3 && <span className="text-slate-600">+{f.enum_values.length-3}</span>}
-                            </span>
-                          ) : "—"}
-                        </span>
-                        <span className="text-[11px] text-slate-600 self-center truncate">
-                          {f.example_value !== undefined && f.example_value !== null ? (
-                            <code className="mono text-[10px] text-slate-500">
-                              {String(f.example_value).slice(0, 28)}
-                            </code>
-                          ) : "—"}
-                        </span>
+                        <code className="self-center mono truncate" style={{ fontSize: 9, color: "#2a2a3a" }}>
+                          {f.example_value !== null && f.example_value !== undefined ? String(f.example_value).slice(0, 24) : "—"}
+                        </code>
                       </motion.div>
                     );
                   })}
-                </div>
+                </>
               )}
-            </div>
+            </MagicCard>
           )}
 
           {tab === "changelog" && (
-            <div className="glass rounded-2xl p-6">
-              <ChangelogPanel endpointId={epId} latestSnapshot={latestSnapshot} />
-            </div>
+            <MagicCard className="sp-card" gradientColor="rgba(99,102,241,0.05)">
+              <div style={{ padding: 20 }}>
+                <ChangelogPanel endpointId={epId} latestSnapshot={latestSnapshot} />
+              </div>
+            </MagicCard>
           )}
         </motion.div>
       </AnimatePresence>
