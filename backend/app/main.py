@@ -2,18 +2,20 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
 from app import __version__
 from app.config import settings
-from app.database import engine
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("schemapilot")
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="SchemaPilot", version=__version__)
+    app = FastAPI(
+        title="SchemaPilot",
+        version=__version__,
+        description="API Contract Drift Monitor",
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -23,16 +25,21 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    @app.get("/health")
-    async def health() -> dict[str, str]:
-        db_ok = "ok"
-        try:
-            async with engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-        except Exception as e:  # noqa: BLE001
-            log.warning("db healthcheck failed: %s", e)
-            db_ok = "error"
-        return {"status": "ok", "db": db_ok, "version": __version__}
+    from app.api import (
+        routes_changelog,
+        routes_diffs,
+        routes_endpoints,
+        routes_health,
+        routes_monitor,
+        routes_snapshots,
+    )
+
+    app.include_router(routes_health.router)
+    app.include_router(routes_endpoints.router)
+    app.include_router(routes_snapshots.router)
+    app.include_router(routes_diffs.router)
+    app.include_router(routes_monitor.router)
+    app.include_router(routes_changelog.router)
 
     log.info("schemapilot started, cors=%s", settings.cors_origins)
     return app
