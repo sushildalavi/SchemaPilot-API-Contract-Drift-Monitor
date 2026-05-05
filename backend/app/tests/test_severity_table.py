@@ -15,6 +15,7 @@ from app.core.severity import SEVERITY_TABLE, classify
         ("nullable_removed", "safe"),
         ("enum_expanded", "risky"),
         ("enum_narrowed", "safe"),
+        ("enum_changed", "risky"),
         ("nested_object_removed", "breaking"),
         ("array_item_type_changed", "breaking"),
     ],
@@ -34,6 +35,7 @@ def test_severity_table_is_complete():
         "nullable_removed",
         "enum_expanded",
         "enum_narrowed",
+        "enum_changed",
         "nested_object_removed",
         "array_item_type_changed",
     }
