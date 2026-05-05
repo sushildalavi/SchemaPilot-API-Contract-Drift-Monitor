@@ -1,7 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+:root {
+  --sidebar-width: 240px;
 }
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  @apply bg-slate-950 text-slate-100;
+}
+
+@layer components {
+  .card {
+    @apply bg-slate-900 border border-slate-800 rounded-xl;
+  }
+  .card-hover {
+    @apply card transition-all duration-200 hover:border-slate-700 hover:shadow-xl hover:shadow-slate-950/50 hover:-translate-y-0.5;
+  }
+  .badge-breaking {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-red-500/15 text-red-400 border border-red-500/25;
+  }
+  .badge-risky {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/25;
+  }
+  .badge-safe {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/20;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 text-sm font-medium transition-all duration-150;
+  }
+  .mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  .hash {
+    @apply mono text-xs bg-slate-800 text-indigo-400 px-2 py-0.5 rounded-md;
+  }
+  .label {
+    @apply text-xs font-semibold uppercase tracking-wider text-slate-500;
+  }
+  .page-title {
+    @apply text-2xl font-bold text-slate-100 tracking-tight;
+  }
+  .section-title {
+    @apply text-sm font-semibold text-slate-300;
+  }
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-slate-700 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-600; }
+
+/* glow pulse for live dot */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px currentColor; }
+  50% { opacity: 0.4; box-shadow: 0 0 2px currentColor; }
+}
+.glow-pulse { animation: glow-pulse 2s ease-in-out infinite; }
+
+/* shimmer for skeleton */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.8s infinite linear;
+}
+
+/* count up flash */
+@keyframes flash-in {
+  0% { opacity: 0; transform: scale(0.85) translateY(4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.flash-in { animation: flash-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+/* fade-slide-up for page entry */
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.4s ease-out forwards; }
+
+/* stagger utility */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(n+6) { animation-delay: 300ms; }

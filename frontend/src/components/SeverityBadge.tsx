@@ -1,14 +1,21 @@
 import type { Severity } from "../types";
 
-const STYLES: Record<Severity, string> = {
-  breaking: "bg-red-100 text-red-700 border border-red-300",
-  risky: "bg-yellow-100 text-yellow-700 border border-yellow-300",
-  safe: "bg-green-100 text-green-700 border border-green-300",
+const DOT: Record<Severity, string> = {
+  breaking: "bg-red-400",
+  risky: "bg-amber-400",
+  safe: "bg-emerald-400",
+};
+
+const STYLE: Record<Severity, string> = {
+  breaking: "badge-breaking",
+  risky: "badge-risky",
+  safe: "badge-safe",
 };
 
 export function SeverityBadge({ severity }: { severity: Severity }) {
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase ${STYLES[severity]}`}>
+    <span className={STYLE[severity]}>
+      <span className={`w-1.5 h-1.5 rounded-full ${DOT[severity]} flex-shrink-0`} />
       {severity}
     </span>
   );
