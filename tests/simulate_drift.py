@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import random
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
+import psycopg2
 
 TRACK_URL = "http://localhost:8000/track"
 REQUESTS = 5000
@@ -67,6 +69,37 @@ async def run_simulation() -> SimulationResult:
 async def main() -> None:
     result = await run_simulation()
     print(f"total={result.total} success={result.success} failure={result.failure}")
+    assert result.failure == 0, "simulation encountered failed submissions"
+
+    dsn = os.getenv("DATABASE_URL_SYNC", "postgresql://schemapilot:dev@localhost:5432/schemapilot")
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM api_endpoints WHERE route_path = %s", ("/mocked/contracts",))
+            endpoint_count = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM schema_snapshots")
+            snapshot_count = cur.fetchone()[0]
+            cur.execute(
+                """
+                SELECT severity, COUNT(*)
+                FROM contract_drift_violations
+                GROUP BY severity
+                ORDER BY severity
+                """
+            )
+            severity_rows = cur.fetchall()
+
+    assert endpoint_count == 1, f"expected exactly one endpoint row, got {endpoint_count}"
+    assert snapshot_count >= 1, "expected at least one schema snapshot"
+    severity_counts = {sev: count for sev, count in severity_rows}
+
+    print(
+        "metrics:",
+        {
+            "endpoint_count": endpoint_count,
+            "snapshot_count": snapshot_count,
+            "severity_counts": severity_counts,
+        },
+    )
 
 
 if __name__ == "__main__":
