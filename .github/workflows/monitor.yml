@@ -2,8 +2,6 @@ name: SchemaPilot Monitor
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 8 * * *"   # daily at 08:00 UTC
 
 jobs:
   monitor:
