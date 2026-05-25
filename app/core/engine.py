@@ -83,3 +83,33 @@ async def register_snapshot(
         },
     )
     return True
+
+
+async def register_payload_snapshot(
+    db: AsyncSession,
+    *,
+    service_name: str,
+    http_method: str,
+    route_path: str,
+    fingerprint: str,
+    normalized_schema: Any,
+) -> tuple[str, bool]:
+    lock_id = route_lock_id(route_path)
+    async with db.begin():
+        await db.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_id)"),
+            {"lock_id": lock_id},
+        )
+        endpoint_id = await ensure_endpoint(
+            db,
+            service_name=service_name,
+            http_method=http_method,
+            route_path=route_path,
+        )
+        inserted = await register_snapshot(
+            db,
+            endpoint_id=endpoint_id,
+            fingerprint=fingerprint,
+            normalized_schema=normalized_schema,
+        )
+    return endpoint_id, inserted
