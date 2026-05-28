@@ -6,12 +6,16 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://schemapilot:dev@localhost:5432/schemapilot")
+POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "15"))
+MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+POOL_TIMEOUT = float(os.getenv("DB_POOL_TIMEOUT", "30"))
 
 engine = create_async_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=POOL_SIZE,
+    max_overflow=MAX_OVERFLOW,
+    pool_timeout=POOL_TIMEOUT,
 )
 
 SessionLocal = async_sessionmaker(

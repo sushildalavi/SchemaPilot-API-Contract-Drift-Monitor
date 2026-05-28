@@ -13,7 +13,6 @@ from app.runtime.classifier import diff_and_classify, summarize_classification
 from app.runtime.events import EventPublisher, publish_with_retry
 from app.runtime.metrics import (
     COMPATIBILITY_CLASSIFICATION_TOTAL,
-    DLQ_SIZE,
     DRIFT_COUNT_TOTAL,
     DRIFT_DETECTION_LATENCY_SECONDS,
     KAFKA_PUBLISH_FAILURES_TOTAL,
@@ -131,9 +130,6 @@ async def track_contract(
                 },
             )
             deliveries.append({"subscription_id": sub["id"], "ok": ok})
-
-    dlq = await db.execute(text("SELECT COUNT(*) FROM webhook_delivery_dlq"))
-    DLQ_SIZE.set(float(dlq.scalar_one()))
 
     elapsed = time.perf_counter() - start
     DRIFT_DETECTION_LATENCY_SECONDS.observe(elapsed)

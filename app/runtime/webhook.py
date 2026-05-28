@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.runtime.metrics import WEBHOOK_DELIVERY_FAILURES_TOTAL
+from app.runtime.metrics import DLQ_SIZE, WEBHOOK_DELIVERY_FAILURES_TOTAL, WEBHOOK_PUBLISH_LATENCY_SECONDS
 
 
 async def _upsert_dlq(
@@ -22,6 +22,7 @@ async def _upsert_dlq(
     failure_reason: str,
     attempt_count: int,
 ) -> None:
+    started = datetime.now(timezone.utc)
     await db.execute(
         text(
             """
@@ -48,6 +49,9 @@ async def _upsert_dlq(
             "attempt_count": attempt_count,
         },
     )
+    count_row = await db.execute(text("SELECT COUNT(*) FROM webhook_delivery_dlq"))
+    DLQ_SIZE.set(float(count_row.scalar_one()))
+    WEBHOOK_PUBLISH_LATENCY_SECONDS.observe((datetime.now(timezone.utc) - started).total_seconds())
 
 
 async def deliver_with_retry(
@@ -71,6 +75,7 @@ async def deliver_with_retry(
 
     try:
         for attempt in range(1, max_attempts + 1):
+            attempt_started = datetime.now(timezone.utc)
             try:
                 res = await http_client.post(target_url, json=payload)
                 if 200 <= res.status_code < 300:
@@ -90,6 +95,7 @@ async def deliver_with_retry(
                         },
                     )
                     await db.commit()
+                    WEBHOOK_PUBLISH_LATENCY_SECONDS.observe((datetime.now(timezone.utc) - attempt_started).total_seconds())
                     return True
                 reason = f"HTTP {res.status_code}"
             except Exception as exc:
@@ -124,6 +130,7 @@ async def deliver_with_retry(
                     attempt_count=attempt,
                 )
                 await db.commit()
+                WEBHOOK_PUBLISH_LATENCY_SECONDS.observe((datetime.now(timezone.utc) - attempt_started).total_seconds())
                 return False
 
         return False
