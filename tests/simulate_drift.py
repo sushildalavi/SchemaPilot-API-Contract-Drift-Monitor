@@ -1,17 +1,28 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import random
+import sys
+import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
 import psycopg2
 
-TRACK_URL = "http://localhost:8000/track"
-REQUESTS = 5000
-CONCURRENCY = 200
+TRACK_URL = os.getenv("TRACK_URL", "http://localhost:8018/track")
+REQUESTS = int(os.getenv("SIM_REQUESTS", "5000"))
+CONCURRENCY = int(os.getenv("SIM_CONCURRENCY", "200"))
+OUTPUT_PATH = Path(
+    os.getenv(
+        "SIM_OUTPUT_PATH",
+        "docs/benchmarks/schema_pilot_simulation_5000.json",
+    )
+)
 
 
 @dataclass
@@ -70,16 +81,33 @@ async def run_simulation() -> SimulationResult:
 
 
 async def main() -> None:
+    start = time.perf_counter()
+    dsn = os.getenv("DATABASE_URL_SYNC", "postgresql://schemapilot:dev@localhost:55433/schemapilot_runtime")
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM contract_drift_violations")
+            cur.execute("DELETE FROM schema_snapshots")
+            cur.execute("DELETE FROM api_endpoints")
+            conn.commit()
+
     result = await run_simulation()
     print(f"total={result.total} success={result.success} failure={result.failure}")
     assert result.failure == 0, "simulation encountered failed submissions"
 
-    dsn = os.getenv("DATABASE_URL_SYNC", "postgresql://schemapilot:dev@localhost:5432/schemapilot")
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM api_endpoints WHERE route_path = %s", ("/mocked/contracts",))
             endpoint_count = cur.fetchone()[0]
-            cur.execute("SELECT COUNT(*) FROM schema_snapshots")
+            cur.execute(
+                """
+                SELECT COUNT(*)
+                FROM schema_snapshots
+                WHERE endpoint_id IN (
+                    SELECT id FROM api_endpoints WHERE route_path = %s
+                )
+                """,
+                ("/mocked/contracts",),
+            )
             snapshot_count = cur.fetchone()[0]
             cur.execute(
                 """
@@ -90,6 +118,19 @@ async def main() -> None:
                 """
             )
             severity_rows = cur.fetchall()
+            cur.execute(
+                """
+                SELECT COALESCE(SUM(active_count - 1), 0)
+                FROM (
+                    SELECT endpoint_id, COUNT(*) AS active_count
+                    FROM schema_snapshots
+                    WHERE is_active_baseline = TRUE
+                    GROUP BY endpoint_id
+                    HAVING COUNT(*) > 1
+                ) dup
+                """
+            )
+            duplicate_baselines = cur.fetchone()[0]
 
     assert endpoint_count == 1, f"expected exactly one endpoint row, got {endpoint_count}"
     assert snapshot_count >= 1, "expected at least one schema snapshot"
@@ -113,6 +154,24 @@ async def main() -> None:
     assert severity_counts.get("SAFE", 0) > 0, "expected SAFE drift logs"
     assert severity_counts.get("RISKY", 0) > 0, "expected RISKY drift logs"
     assert severity_counts.get("BREAKING", 0) > 0, "expected BREAKING drift logs"
+    duration = time.perf_counter() - start
+
+    artifact = {
+        "events_total": result.total,
+        "concurrency": CONCURRENCY,
+        "success_count": result.success,
+        "failure_count": result.failure,
+        "safe_count": severity_counts.get("SAFE", 0),
+        "risky_count": severity_counts.get("RISKY", 0),
+        "breaking_count": severity_counts.get("BREAKING", 0),
+        "duplicate_baselines": int(duplicate_baselines),
+        "duration_seconds": round(duration, 4),
+        "command_used": " ".join(sys.argv),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_PATH.write_text(json.dumps(artifact, indent=2))
+    print(f"wrote artifact: {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

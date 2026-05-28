@@ -1,0 +1,13 @@
+{
+  "events_total": 5000,
+  "concurrency": 200,
+  "success_count": 5000,
+  "failure_count": 0,
+  "safe_count": 1000,
+  "risky_count": 4995,
+  "breaking_count": 4003,
+  "duplicate_baselines": 0,
+  "duration_seconds": 37.1291,
+  "command_used": "tests/simulate_drift.py",
+  "timestamp": "2026-05-27T03:58:06.909487+00:00"
+}

@@ -80,8 +80,15 @@ async def register_snapshot(
     normalized_schema: Any,
 ) -> bool:
     existing = await db.execute(
-        text("SELECT fingerprint FROM schema_snapshots WHERE fingerprint = :fingerprint"),
-        {"fingerprint": fingerprint},
+        text(
+            """
+            SELECT 1
+            FROM schema_snapshots
+            WHERE endpoint_id = CAST(:endpoint_id AS uuid)
+              AND fingerprint = :fingerprint
+            """
+        ),
+        {"endpoint_id": endpoint_id, "fingerprint": fingerprint},
     )
     if existing.scalar_one_or_none():
         return False

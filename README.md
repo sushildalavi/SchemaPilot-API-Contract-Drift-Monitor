@@ -164,7 +164,7 @@ erDiagram
 - `drift-simulator/` — changing API payload source for local drift demos
 - `docs/screenshots/` — Playwright screenshots
 - `app/` — runtime contract-guard module (`/track`, metrics, parser/engine)
-- `migrations/001_contract_guard_schema.sql` — runtime guard schema DDL
+- `migrations/00*_contract_guard*.sql` — runtime guard SQL migrations
 - `tests/simulate_drift.py` — 5000-request concurrency simulation harness
 
 ---
@@ -207,6 +207,16 @@ The runtime guard module lives under `app/` and exposes:
 - `POST /track` — submit live payload sample for schema-fingerprint + drift evaluation
 - `GET /api/v1/metrics` — runtime counts (`endpoint_count`, `snapshot_count`, `severity_counts`)
 
+Run via Docker Compose:
+
+```bash
+docker compose up -d postgres runtime-guard
+```
+
+Runtime endpoint:
+
+- `http://localhost:8018/track`
+
 Run it directly:
 
 ```bash
@@ -215,7 +225,7 @@ source .venv/bin/activate
 pip install -r requirements.txt asyncpg httpx uvicorn greenlet
 
 # Requires postgres reachable by DATABASE_URL
-DATABASE_URL='postgresql+asyncpg://schemapilot:dev@localhost:55432/schemapilot' \
+DATABASE_URL='postgresql+asyncpg://schemapilot:dev@localhost:55433/schemapilot_runtime' \
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8018
 ```
 
@@ -258,6 +268,10 @@ Runtime registration uses a deterministic route hash and transactional advisory 
 
 This prevents duplicate endpoint races and write collisions during concurrent submissions.
 
+Runtime snapshot uniqueness is endpoint-scoped:
+
+- `UNIQUE(endpoint_id, fingerprint)` in runtime schema migrations.
+
 ---
 
 ## Testing and Validation
@@ -272,8 +286,7 @@ pytest -q
 ### Runtime stress harness
 
 ```bash
-# Uses tests/simulate_drift.py, defaults to 5000 requests
-# Set TRACK_URL inside the script call context if needed.
+make simulate
 ```
 
 The harness validates:
@@ -281,6 +294,11 @@ The harness validates:
 - endpoint/snapshot persistence
 - non-empty `SAFE`, `RISKY`, `BREAKING` counters
 - `/api/v1/metrics` consistency
+- duplicate active-baseline count (`duplicate_baselines`)
+
+Output artifact:
+
+- `docs/benchmarks/schema_pilot_simulation_5000.json`
 
 ---
 
