@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: SchemaPilot
+    orgId: 1
+    folder: SchemaPilot
+    type: file
+    disableDeletion: false
+    options:
+      path: /var/lib/grafana/dashboards
