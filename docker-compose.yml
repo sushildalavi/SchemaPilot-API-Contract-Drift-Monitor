@@ -60,6 +60,19 @@ services:
     depends_on:
       - backend
 
+  gateway:
+    build: ./gateway
+    environment:
+      WEBHOOK_HMAC_SECRET: ${WEBHOOK_HMAC_SECRET:-dev-webhook-secret}
+      RUNTIME_INGEST_URL: http://runtime-guard:8018/track
+      WEBHOOK_MAX_BODY_BYTES: ${WEBHOOK_MAX_BODY_BYTES:-262144}
+      PORT: 3000
+    ports:
+      - "3020:3000"
+    depends_on:
+      runtime-guard:
+        condition: service_started
+
   runtime-guard:
     build:
       context: .
