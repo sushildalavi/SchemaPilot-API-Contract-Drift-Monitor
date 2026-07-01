@@ -1,4 +1,4 @@
-name: SchemaPilot Monitor
+name: DriftGate Monitor
 
 on:
   workflow_dispatch:

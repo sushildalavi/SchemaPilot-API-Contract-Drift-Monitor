@@ -1,4 +1,4 @@
-# SchemaPilot Agentic AI Upgrade Plan
+# DriftGate Agentic AI Upgrade Plan
 
 ## Current relevant capabilities
 - Deterministic schema diffing exists in `scripts/openapi_diff.py` and `backend/app/core/schema_diff.py`.

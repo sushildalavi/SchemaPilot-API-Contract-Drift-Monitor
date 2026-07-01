@@ -2,7 +2,7 @@
 
 ## What the project does
 
-SchemaPilot monitors API drift, infers schema changes, and surfaces runtime guard and dashboard workflows for API reliability.
+DriftGate monitors API drift, infers schema changes, and surfaces runtime guard and dashboard workflows for API reliability.
 
 ## Why it is technically impressive
 
@@ -17,7 +17,7 @@ SchemaPilot monitors API drift, infers schema changes, and surfaces runtime guar
 ## How to run locally
 
 - `docker compose up -d --build`
-- `curl -X POST http://localhost:8080/api/monitor/run-once -H "X-SCHEMAPILOT-ADMIN-SECRET: dev-secret"`
+  - `curl -X POST http://localhost:8080/api/monitor/run-once -H "X-SCHEMAPILOT-ADMIN-SECRET: dev-secret"`
 
 ## How to test
 
@@ -53,5 +53,5 @@ SchemaPilot monitors API drift, infers schema changes, and surfaces runtime guar
 
 ## Verification Log
 
-- `python3 /Users/sushildalavi/Desktop/Github/SchemaPilot/scripts/contract_check.py --old /Users/sushildalavi/Desktop/Github/SchemaPilot/tests/fixtures/openapi_old.json --new /Users/sushildalavi/Desktop/Github/SchemaPilot/tests/fixtures/openapi_new.json` - pass - 2026-06-17 - Correctly flagged a breaking diff and exited nonzero as expected.
-- `python3 -m pytest /Users/sushildalavi/Desktop/Github/SchemaPilot/tests/test_openapi_diff.py /Users/sushildalavi/Desktop/Github/SchemaPilot/tests/test_benchmark_summary.py` - pass - 2026-06-17 - Verified diff and benchmark parsers.
+- `python3 /Users/sushildalavi/Desktop/Github/driftgate/scripts/contract_check.py --old /Users/sushildalavi/Desktop/Github/driftgate/tests/fixtures/openapi_old.json --new /Users/sushildalavi/Desktop/Github/driftgate/tests/fixtures/openapi_new.json` - pass - 2026-06-17 - Correctly flagged a breaking diff and exited nonzero as expected.
+- `python3 -m pytest /Users/sushildalavi/Desktop/Github/driftgate/tests/test_openapi_diff.py /Users/sushildalavi/Desktop/Github/driftgate/tests/test_benchmark_summary.py` - pass - 2026-06-17 - Verified diff and benchmark parsers.

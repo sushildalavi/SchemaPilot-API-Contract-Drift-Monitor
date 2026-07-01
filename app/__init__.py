@@ -1,1 +1,1 @@
-"""SchemaPilot contract guard application package."""
+"""DriftGate contract guard application package."""

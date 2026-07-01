@@ -12,7 +12,7 @@ log = logging.getLogger("schemapilot")
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="SchemaPilot",
+        title="DriftGate",
         version=__version__,
         description="API Contract Drift Monitor",
     )
@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(monitor.router)
     app.include_router(changelog.router)
 
-    log.info("schemapilot started, cors=%s", settings.cors_origins)
+    log.info("driftgate started, cors=%s", settings.cors_origins)
     return app
 
 

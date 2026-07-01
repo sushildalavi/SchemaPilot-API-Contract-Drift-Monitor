@@ -1,6 +1,6 @@
 # Agentic Contract Review
 
-The SchemaPilot contract review agent is a deterministic wrapper around the existing OpenAPI diff logic.
+The DriftGate contract review agent is a deterministic wrapper around the existing OpenAPI diff logic.
 
 ## Workflow
 

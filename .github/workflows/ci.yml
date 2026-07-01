@@ -1,4 +1,4 @@
-name: CI
+name: DriftGate CI
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: schemapilot_test
+          POSTGRES_DB: driftgate_test
           POSTGRES_USER: schemapilot
           POSTGRES_PASSWORD: test
         ports:
@@ -41,8 +41,8 @@ jobs:
 
       - name: Run Alembic migrations
         env:
-          DATABASE_URL: postgresql+asyncpg://schemapilot:test@localhost:5432/schemapilot_test
-          DATABASE_URL_SYNC: postgresql://schemapilot:test@localhost:5432/schemapilot_test
+          DATABASE_URL: postgresql+asyncpg://schemapilot:test@localhost:5432/driftgate_test
+          DATABASE_URL_SYNC: postgresql://schemapilot:test@localhost:5432/driftgate_test
           ADMIN_SECRET: ci-secret
           FRONTEND_ORIGINS: http://localhost:5173
           REGISTRY_PATH: /tmp/apis.yaml
@@ -50,8 +50,8 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql+asyncpg://schemapilot:test@localhost:5432/schemapilot_test
-          DATABASE_URL_SYNC: postgresql://schemapilot:test@localhost:5432/schemapilot_test
+          DATABASE_URL: postgresql+asyncpg://schemapilot:test@localhost:5432/driftgate_test
+          DATABASE_URL_SYNC: postgresql://schemapilot:test@localhost:5432/driftgate_test
           ADMIN_SECRET: ci-secret
           FRONTEND_ORIGINS: http://localhost:5173
           REGISTRY_PATH: /tmp/apis.yaml
@@ -86,10 +86,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build backend image
-        run: docker build -t schemapilot-backend ./backend
+        run: docker build -t driftgate-backend ./backend
 
       - name: Build frontend image
-        run: docker build --build-arg VITE_API_BASE_URL=https://placeholder.example.com -t schemapilot-frontend ./frontend
+        run: docker build --build-arg VITE_API_BASE_URL=https://placeholder.example.com -t driftgate-frontend ./frontend
 
       - name: Build drift-simulator image
-        run: docker build -t schemapilot-simulator ./drift-simulator
+        run: docker build -t driftgate-simulator ./simulator

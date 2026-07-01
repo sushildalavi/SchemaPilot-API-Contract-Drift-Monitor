@@ -28,4 +28,4 @@ python scripts/apply_runtime_migrations.py
 ## Common Pitfall
 
 - `http://localhost:8000` is frequently occupied by other local projects.
-- Use `http://localhost:8018/track` for SchemaPilot runtime benchmarks unless you intentionally remap ports.
+- Use `http://localhost:8018/track` for DriftGate runtime benchmarks unless you intentionally remap ports.

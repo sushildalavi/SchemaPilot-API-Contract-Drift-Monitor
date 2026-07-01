@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
         await close_db()
 
 
-app = FastAPI(title="SchemaPilot Contract Guard", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="DriftGate Contract Guard", version="1.0.0", lifespan=lifespan)
 
 
 @app.post("/track")

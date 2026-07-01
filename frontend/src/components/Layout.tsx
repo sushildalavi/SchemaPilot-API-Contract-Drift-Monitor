@@ -92,7 +92,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div>
-              <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>SchemaPilot</p>
+              <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>DriftGate</p>
               <p className="eyebrow" style={{ fontSize: 9, marginTop: 2 }}>API Monitor</p>
             </div>
           </div>
@@ -230,7 +230,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 className="mono flex items-center gap-1.5"
                 style={{ fontSize: 11 }}
               >
-                <span style={{ color: "var(--text-4)" }}>schemapilot</span>
+                <span style={{ color: "var(--text-4)" }}>driftgate</span>
                 <span style={{ color: "var(--text-4)" }}>/</span>
                 <span style={{ color: "var(--text-3)" }}>{routeLabel}</span>
               </motion.div>

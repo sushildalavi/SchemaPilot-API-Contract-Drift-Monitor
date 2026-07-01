@@ -6,10 +6,10 @@ Zero cost at portfolio scale: Neon (DB) + Cloud Run (backend) + Vercel (frontend
 
 ## 1. Neon Postgres
 
-1. Sign up at [neon.tech](https://neon.tech) and create a free project called `schemapilot`.
+1. Sign up at [neon.tech](https://neon.tech) and create a free project called `driftgate`.
 2. From the **Dashboard → Connection Details** copy:
-   - **Pooler URL** (for the app): `postgresql+asyncpg://...@ep-xxx.neon.tech/schemapilot?sslmode=require`
-   - **Direct URL** (for Alembic): `postgresql://...@ep-xxx.neon.tech/schemapilot?sslmode=require`
+   - **Pooler URL** (for the app): `postgresql+asyncpg://...@ep-xxx.neon.tech/<db-name>?sslmode=require`
+   - **Direct URL** (for Alembic): `postgresql://...@ep-xxx.neon.tech/<db-name>?sslmode=require`
 
    Prefix the pooler URL with `postgresql+asyncpg://` for `DATABASE_URL`.
 
@@ -34,15 +34,15 @@ gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudb
 ```bash
 # From repo root
 gcloud builds submit \
-  --tag gcr.io/YOUR_PROJECT_ID/schemapilot-backend \
+  --tag gcr.io/YOUR_PROJECT_ID/driftgate-backend \
   ./backend
 ```
 
 ### Deploy
 
 ```bash
-gcloud run deploy schemapilot-backend \
-  --image gcr.io/YOUR_PROJECT_ID/schemapilot-backend \
+gcloud run deploy driftgate-backend \
+  --image gcr.io/YOUR_PROJECT_ID/driftgate-backend \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
@@ -51,15 +51,15 @@ gcloud run deploy schemapilot-backend \
   --memory 512Mi \
   --timeout 120 \
   --set-env-vars "\
-DATABASE_URL=postgresql+asyncpg://USER:PASS@HOST/schemapilot?sslmode=require,\
-DATABASE_URL_SYNC=postgresql://USER:PASS@HOST/schemapilot?sslmode=require,\
+DATABASE_URL=postgresql+asyncpg://USER:PASS@HOST/<db-name>?sslmode=require,\
+DATABASE_URL_SYNC=postgresql://USER:PASS@HOST/<db-name>?sslmode=require,\
 ADMIN_SECRET=your-strong-secret-here,\
 FRONTEND_ORIGINS=https://YOUR_VERCEL_DOMAIN.vercel.app,\
 REGISTRY_PATH=/app/config/apis.yaml,\
 ANTHROPIC_API_KEY=sk-ant-..."
 ```
 
-Note the deployed URL: `https://schemapilot-backend-xxxx-uc.a.run.app`
+Note the deployed URL: `https://driftgate-backend-xxxx-uc.a.run.app`
 
 ---
 
@@ -69,14 +69,14 @@ Note the deployed URL: `https://schemapilot-backend-xxxx-uc.a.run.app`
 2. Go to [vercel.com](https://vercel.com), import the repo.
 3. Set **Root Directory** to `frontend`.
 4. Add environment variable:
-   - `VITE_API_BASE_URL` = your Cloud Run URL (e.g. `https://schemapilot-backend-xxxx-uc.a.run.app`)
+   - `VITE_API_BASE_URL` = your Cloud Run URL (e.g. `https://driftgate-backend-xxxx-uc.a.run.app`)
    - `VITE_ADMIN_SECRET` = same value as `ADMIN_SECRET` on backend
-5. Deploy. Note the Vercel domain (e.g. `schemapilot.vercel.app`).
+5. Deploy. Note the Vercel domain (e.g. `driftgate.vercel.app`).
 6. Update the Cloud Run `FRONTEND_ORIGINS` env var with this domain and redeploy:
    ```bash
-   gcloud run services update schemapilot-backend \
+   gcloud run services update driftgate-backend \
      --region us-central1 \
-     --update-env-vars FRONTEND_ORIGINS=https://schemapilot.vercel.app
+     --update-env-vars FRONTEND_ORIGINS=https://driftgate.vercel.app
    ```
 
 ---
@@ -90,7 +90,7 @@ In GitHub repo → Settings → Secrets → Actions, add:
 | `SCHEMAPILOT_BACKEND_URL` | Cloud Run URL |
 | `SCHEMAPILOT_ADMIN_SECRET` | Same as `ADMIN_SECRET` |
 
-Test the cron manually via Actions → SchemaPilot Monitor → Run workflow.
+Test the cron manually via Actions → DriftGate Monitor → Run workflow.
 
 ---
 

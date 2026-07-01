@@ -54,7 +54,7 @@ Fields:
 
 ## Observability
 - `/metrics` exposes Prometheus format.
-- Dashboard JSON: `grafana/dashboards/schemapilot-runtime-dashboard.json`
+- Dashboard JSON: `grafana/dashboards/driftgate-runtime-dashboard.json`
 
 ## Benchmark
 - k6 script: `k6/track_benchmark.js`

@@ -1,6 +1,6 @@
-# SchemaPilot
+# DriftGate
 
-SchemaPilot tracks JSON API contract drift.
+DriftGate tracks JSON API contract drift.
 
 This repository currently contains two backend services:
 
@@ -71,7 +71,7 @@ The code is structured for Azure-ready deployment, but cloud resources are optio
 
 ## Portfolio Proof
 
-- Architecture and evaluation: [docs/PORTFOLIO_PROOF.md](/Users/sushildalavi/Desktop/Github/SchemaPilot/docs/PORTFOLIO_PROOF.md)
+- Architecture and evaluation: [docs/PORTFOLIO_PROOF.md](/Users/sushildalavi/Desktop/Github/driftgate/docs/PORTFOLIO_PROOF.md)
 - Demo and local mode: use the Docker Compose command above
 - Test commands: `pytest`, `npm run build`, `docker compose config`
 - Evidence: benchmark and regression docs under `docs/`

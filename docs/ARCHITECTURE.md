@@ -1,6 +1,6 @@
-# SchemaPilot Architecture
+# DriftGate Architecture
 
-SchemaPilot has two backend paths:
+DriftGate has two backend paths:
 
 1. Scheduled monitor (`backend/`): fetches configured APIs, infers schema, computes deterministic hash, stores snapshots/diffs.
 2. Runtime guard (`app/`): accepts `POST /track` payloads, computes structural fingerprints, classifies drift, stores runtime violations.
