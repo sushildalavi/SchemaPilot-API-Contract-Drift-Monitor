@@ -2,9 +2,10 @@
 
 DriftGate tracks JSON API contract drift.
 
-This repository currently contains two backend services:
+This repository currently contains three runtime services:
 
 - `backend/`: scheduled API monitor and changelog service
+- `gateway/`: Node.js/TypeScript webhook gateway with HMAC and idempotency checks
 - root `app/`: runtime contract guard, webhook outbox, and drift event pipeline
 
 It has two paths:
@@ -32,6 +33,7 @@ flowchart LR
   end
 
   subgraph Backend
+    G1[Webhook gateway]
     M1[Monitor worker]
     M2[Schema inference]
     M3[Severity classifier]
@@ -44,6 +46,7 @@ flowchart LR
   A --> M1
   B --> M1
   C --> M1
+  A --> G1 --> M4
   M1 --> M2 --> M3 --> DB
   M4 --> DB
   FE --> Backend
@@ -73,5 +76,5 @@ The code is structured for Azure-ready deployment, but cloud resources are optio
 
 - Architecture and evaluation: [docs/PORTFOLIO_PROOF.md](/Users/sushildalavi/Desktop/Github/driftgate/docs/PORTFOLIO_PROOF.md)
 - Demo and local mode: use the Docker Compose command above
-- Test commands: `pytest`, `npm run build`, `docker compose config`
+- Test commands: `pytest`, `npm run build`, `docker compose config`, `cd gateway && npm test`
 - Evidence: benchmark and regression docs under `docs/`
