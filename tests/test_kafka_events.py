@@ -77,3 +77,9 @@ def test_factory_selects_kafka_with_injected_producer(monkeypatch):
     producer = FakeProducer()
     backend = build_event_backend(kafka_producer=producer)
     assert isinstance(backend, KafkaEventBackend)
+
+
+def test_factory_requires_producer_for_kafka(monkeypatch):
+    monkeypatch.setenv("EVENT_BACKEND", "kafka")
+    with pytest.raises(RuntimeError, match="kafka_producer"):
+        build_event_backend()

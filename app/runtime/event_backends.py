@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 from app.runtime.models import DriftEvent
-
-log = logging.getLogger("schemapilot.runtime.events")
 
 
 class DriftEventBackend(Protocol):
@@ -90,13 +87,13 @@ def build_event_backend(
     if backend == "kafka":
         if kafka_producer is not None:
             return KafkaEventBackend(kafka_producer)
-        log.info("EVENT_BACKEND=kafka configured without producer; falling back to noop backend")
-        return NoopEventBackend()
+        raise RuntimeError(
+            "EVENT_BACKEND=kafka requires a kafka_producer or an explicit noop configuration"
+        )
     if backend == "azure_service_bus":
         if service_bus_sender is not None:
             return AzureServiceBusEventBackend(service_bus_sender)
-        log.info(
-            "EVENT_BACKEND=azure_service_bus configured without sender; falling back to noop backend"
+        raise RuntimeError(
+            "EVENT_BACKEND=azure_service_bus requires a service_bus_sender or an explicit noop configuration"
         )
-        return NoopEventBackend()
     return NoopEventBackend()

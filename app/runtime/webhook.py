@@ -8,6 +8,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.runtime.document_store import DocumentStore
 from app.runtime.metrics import DLQ_SIZE, WEBHOOK_DELIVERY_FAILURES_TOTAL, WEBHOOK_PUBLISH_LATENCY_SECONDS
 
 
@@ -139,3 +140,165 @@ async def deliver_with_retry(
     finally:
         if own_client:
             await http_client.aclose()
+
+
+async def list_dlq_entries(db: AsyncSession, *, limit: int = 50) -> list[dict[str, Any]]:
+    rows = await db.execute(
+        text(
+            """
+            SELECT id::text, event_id::text, consumer_id, endpoint_id::text, target_url,
+                   payload, failure_reason, attempt_count, created_at, last_attempt_at
+            FROM webhook_delivery_dlq
+            ORDER BY last_attempt_at DESC
+            LIMIT :limit
+            """
+        ),
+        {"limit": limit},
+    )
+    out: list[dict[str, Any]] = []
+    for row in rows.fetchall():
+        out.append(
+            {
+                "id": row[0],
+                "event_id": row[1],
+                "consumer_id": row[2],
+                "endpoint_id": row[3],
+                "target_url": row[4],
+                "payload": row[5],
+                "failure_reason": row[6],
+                "attempt_count": row[7],
+                "created_at": row[8].isoformat(),
+                "last_attempt_at": row[9].isoformat(),
+            }
+        )
+    return out
+
+
+async def get_dlq_entry(db: AsyncSession, dlq_id: str) -> dict[str, Any] | None:
+    row = await db.execute(
+        text(
+            """
+            SELECT id::text, event_id::text, consumer_id, endpoint_id::text, target_url,
+                   payload, failure_reason, attempt_count, created_at, last_attempt_at
+            FROM webhook_delivery_dlq
+            WHERE id = CAST(:dlq_id AS uuid)
+            """
+        ),
+        {"dlq_id": dlq_id},
+    )
+    entry = row.first()
+    if entry is None:
+        return None
+    return {
+        "id": entry[0],
+        "event_id": entry[1],
+        "consumer_id": entry[2],
+        "endpoint_id": entry[3],
+        "target_url": entry[4],
+        "payload": entry[5],
+        "failure_reason": entry[6],
+        "attempt_count": entry[7],
+        "created_at": entry[8].isoformat(),
+        "last_attempt_at": entry[9].isoformat(),
+    }
+
+
+async def list_delivery_attempts(db: AsyncSession, *, limit: int = 100) -> list[dict[str, Any]]:
+    rows = await db.execute(
+        text(
+            """
+            SELECT id::text, event_id::text, consumer_id, endpoint_id::text, target_url,
+                   success, failure_reason, attempt_count, attempted_at
+            FROM webhook_delivery_attempts
+            ORDER BY attempted_at DESC
+            LIMIT :limit
+            """
+        ),
+        {"limit": limit},
+    )
+    out: list[dict[str, Any]] = []
+    for row in rows.fetchall():
+        out.append(
+            {
+                "id": row[0],
+                "event_id": row[1],
+                "consumer_id": row[2],
+                "endpoint_id": row[3],
+                "target_url": row[4],
+                "success": row[5],
+                "failure_reason": row[6],
+                "attempt_count": row[7],
+                "attempted_at": row[8].isoformat(),
+            }
+        )
+    return out
+
+
+async def replay_dlq_entry(
+    db: AsyncSession,
+    *,
+    dlq_id: str,
+    document_store: DocumentStore | None = None,
+) -> dict[str, Any]:
+    entry = await get_dlq_entry(db, dlq_id)
+    if entry is None:
+        return {"replayed": False, "error": "dlq_not_found"}
+
+    sub_row = await db.execute(
+        text(
+            """
+            SELECT id::text, consumer_id, endpoint_id::text, target_url, active
+            FROM consumer_subscriptions
+            WHERE endpoint_id = CAST(:endpoint_id AS uuid)
+              AND consumer_id = :consumer_id
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        ),
+        {"endpoint_id": entry["endpoint_id"], "consumer_id": entry["consumer_id"]},
+    )
+    sub = sub_row.first()
+    if sub is None:
+        return {"replayed": False, "error": "subscription_not_found", "dlq": entry}
+
+    subscription = {
+        "id": sub[0],
+        "consumer_id": sub[1],
+        "endpoint_id": sub[2],
+        "target_url": sub[3],
+        "active": sub[4],
+    }
+    payload = entry["payload"]
+    event_payload = payload.get("event") if isinstance(payload, dict) else payload
+    event_id = entry["event_id"]
+
+    ok = await deliver_with_retry(
+        db,
+        event_id=event_id,
+        endpoint_id=entry["endpoint_id"],
+        subscription=subscription,
+        payload=event_payload if isinstance(event_payload, dict) else {"value": event_payload},
+        max_attempts=1,
+        persist_dlq=False,
+    )
+
+    artifact = {
+        "dlq_id": dlq_id,
+        "event_id": event_id,
+        "consumer_id": entry["consumer_id"],
+        "endpoint_id": entry["endpoint_id"],
+        "target_url": entry["target_url"],
+        "replayed": ok,
+        "failure_reason": None if ok else entry["failure_reason"],
+        "replayed_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if document_store is not None:
+        await document_store.store_replay_artifact(
+            source="runtime-dlq",
+            artifact_type="dlq_replay",
+            payload=artifact,
+            metadata={"dlq_id": dlq_id, "consumer_id": entry["consumer_id"]},
+        )
+
+    return artifact

@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.subscriptions import router as subscriptions_router
+from app.api.reliability import router as reliability_router
 from app.core.engine import (
     classify_contract_drift,
     get_active_baseline_snapshot,
@@ -184,3 +185,4 @@ async def prometheus_metrics() -> Response:
 
 
 app.include_router(subscriptions_router)
+app.include_router(reliability_router)

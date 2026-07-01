@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.db import get_db
 from app.main import app
 from app.runtime.document_store import InMemoryDocumentStore
+from app.runtime import webhook as webhook_runtime
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -276,3 +277,90 @@ async def test_validation_errors_are_captured_in_document_store(client: httpx.As
     assert len(validation_errors) == 1
     assert validation_errors[0]["kind"] == "validation_error"
     assert validation_errors[0]["path"] == "/track"
+
+
+@pytest.mark.asyncio
+async def test_dlq_list_and_replay_endpoints(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    r = await client.post(
+        "/track",
+        json={
+            "service_name": "svc-a",
+            "http_method": "POST",
+            "route_path": "/v1/orders",
+            "payload": _payload(include_meta=True),
+        },
+    )
+    endpoint_id = r.json()["endpoint_id"]
+    sub = await client.post(
+        "/api/v1/subscriptions",
+        json={
+            "consumer_id": "c1",
+            "endpoint_id": endpoint_id,
+            "target_url": "http://127.0.0.1:9/fail",
+            "severity_threshold": "SAFE",
+            "active": True,
+        },
+    )
+    assert sub.status_code == 200
+
+    await client.post(
+        "/track",
+        json={
+            "service_name": "svc-a",
+            "http_method": "POST",
+            "route_path": "/v1/orders",
+            "payload": _payload(score=42.5, include_meta=False),
+        },
+    )
+
+    dlq_response = await client.get("/api/v1/webhook-dlq")
+    assert dlq_response.status_code == 200
+    dlq_entries = dlq_response.json()
+    assert len(dlq_entries) >= 1
+    dlq_id = dlq_entries[0]["id"]
+
+    async def fake_replay(*_args, **_kwargs) -> bool:
+        return True
+
+    monkeypatch.setattr(webhook_runtime, "deliver_with_retry", fake_replay)
+
+    replay_response = await client.post(f"/api/v1/webhook-dlq/{dlq_id}/replay")
+    assert replay_response.status_code == 200
+    assert replay_response.json()["replayed"] is True
+
+    store = app.state.document_store
+    artifacts = await store.list_replay_artifacts()
+    assert len(artifacts) == 1
+    assert artifacts[0]["payload"]["dlq_id"] == dlq_id
+
+
+@pytest.mark.asyncio
+async def test_document_store_browse_endpoints(client: httpx.AsyncClient) -> None:
+    await client.post(
+        "/track",
+        json={
+            "service_name": "svc-a",
+            "http_method": "POST",
+            "route_path": "/v1/orders",
+            "payload": _payload(include_meta=True),
+        },
+    )
+    await client.post(
+        "/track",
+        json={
+            "service_name": "svc-a",
+            "http_method": "POST",
+            "route_path": "/v1/orders",
+            "payload": _payload(score=42.5, include_meta=False),
+        },
+    )
+
+    payloads = await client.get("/api/v1/documents/payload-snapshots")
+    diffs = await client.get("/api/v1/documents/schema-diffs")
+    validations = await client.get("/api/v1/documents/validation-errors")
+
+    assert payloads.status_code == 200
+    assert diffs.status_code == 200
+    assert validations.status_code == 200
+    assert len(payloads.json()) == 2
+    assert len(diffs.json()) == 1

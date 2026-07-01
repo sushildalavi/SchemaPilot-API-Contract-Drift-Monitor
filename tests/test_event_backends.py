@@ -72,3 +72,11 @@ async def test_azure_service_bus_backend_uses_sender():
     )
     await backend.publish_drift_detected(event)
     assert sender.messages
+
+
+def test_factory_requires_sender_for_service_bus(monkeypatch):
+    from app.runtime.event_backends import build_event_backend
+
+    monkeypatch.setenv("EVENT_BACKEND", "azure_service_bus")
+    with pytest.raises(RuntimeError, match="service_bus_sender"):
+        build_event_backend()
