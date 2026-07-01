@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { forkJoin, map, Observable } from 'rxjs';
+import { forkJoin, Observable } from 'rxjs';
 
 import {
   DeliveryAttempt,
@@ -27,7 +27,7 @@ export class ApiService {
   private readonly monitorBaseUrl = 'http://localhost:8080';
   private readonly runtimeBaseUrl = 'http://localhost:8018';
 
-  constructor(private readonly http: HttpClient) {}
+  private readonly http = inject(HttpClient);
 
   getOverview(): Observable<OverviewBundle> {
     return forkJoin({
