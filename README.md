@@ -19,6 +19,7 @@ It has two paths:
 - Computes deterministic schema hashes
 - Diffs schema changes and classifies severity
 - Persists snapshots and violations
+- Stores payload snapshots, schema diffs, validation errors, and replay artifacts in a MongoDB-compatible document store
 - Powers a dashboard for triage and history
 - Supports an event-backend abstraction for drift publishing
 
@@ -41,6 +42,7 @@ flowchart LR
   end
 
   DB[(PostgreSQL)]
+  DOC[(MongoDB / Cosmos docs)]
   FE[React dashboard]
 
   A --> M1
@@ -49,6 +51,7 @@ flowchart LR
   A --> G1 --> M4
   M1 --> M2 --> M3 --> DB
   M4 --> DB
+  M4 --> DOC
   FE --> Backend
 ```
 
@@ -63,12 +66,15 @@ curl -X POST http://localhost:8080/api/monitor/run-once \
 ## Runtime guard
 
 The runtime guard exposes a `POST /track` endpoint for live payload samples and a metrics endpoint for counts.
+It also writes payload snapshots and drift documents to the document store configured by `DOCUMENT_STORE_BACKEND`.
 
 Runtime event delivery is environment driven:
 
 - `EVENT_BACKEND=noop` for local development
 - `EVENT_BACKEND=kafka` when a Kafka producer is injected
 - `EVENT_BACKEND=azure_service_bus` when an Azure Service Bus sender is injected
+- `DOCUMENT_STORE_BACKEND=memory` for tests and minimal local mode
+- `DOCUMENT_STORE_BACKEND=mongo` with `DOCUMENT_STORE_URI=mongodb://mongo:27017` for local MongoDB or Cosmos-compatible deployments
 
 The code is structured for Azure-ready deployment, but cloud resources are optional and not required for local runs.
 

@@ -6,6 +6,7 @@ DriftGate has two backend paths:
 2. Runtime guard (`app/`): accepts `POST /track` payloads, computes structural fingerprints, classifies drift, stores runtime violations.
 3. Webhook gateway (`gateway/`): verifies signatures and idempotency before forwarding accepted payloads to the runtime service.
 4. Event backend abstraction: publishes drift events to Kafka or Azure Service Bus when configured, with a no-op local fallback.
+5. Document store: payload snapshots, schema diff documents, validation failures, and replay artifacts go to a MongoDB/Cosmos-compatible store when enabled.
 
 ## Runtime Guard Data Path
 
@@ -18,6 +19,7 @@ DriftGate has two backend paths:
 6. Drift is classified into `SAFE`, `RISKY`, `BREAKING`.
 7. Runtime metrics are exposed at `/api/v1/metrics`.
 8. Drift events are handed off through an environment-selected backend (`EVENT_BACKEND`).
+9. Document artifacts are written separately to MongoDB/Cosmos via `DOCUMENT_STORE_BACKEND`.
 
 ## Runtime Schema
 
