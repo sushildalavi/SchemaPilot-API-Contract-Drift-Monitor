@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.db import get_db
 from app.main import app
+from app.runtime.document_store import InMemoryDocumentStore
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -79,6 +80,7 @@ async def client(session_maker: async_sessionmaker[AsyncSession]) -> AsyncGenera
             yield session
 
     app.dependency_overrides[get_db] = _override_db
+    app.state.document_store = InMemoryDocumentStore()
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
@@ -227,3 +229,50 @@ async def test_metrics_consistency(client: httpx.AsyncClient) -> None:
     assert m["endpoint_count"] == 1
     assert m["snapshot_count"] >= 1
     assert m["severity_counts"].get("RISKY", 0) > 0
+
+
+@pytest.mark.asyncio
+async def test_track_persists_document_store_artifacts(client: httpx.AsyncClient) -> None:
+    base = {
+        "service_name": "svc-a",
+        "http_method": "POST",
+        "route_path": "/v1/orders",
+        "payload": _payload(include_meta=True),
+    }
+    await client.post("/track", json=base)
+    await client.post(
+        "/track",
+        json={
+            **base,
+            "payload": _payload(score=42.5, include_meta=False),
+        },
+    )
+
+    store = app.state.document_store
+    payload_snapshots = await store.list_payload_snapshots()
+    schema_diffs = await store.list_schema_diffs()
+
+    assert len(payload_snapshots) == 2
+    assert payload_snapshots[0]["kind"] == "payload_snapshot"
+    assert len(schema_diffs) == 1
+    assert schema_diffs[0]["kind"] == "schema_diff"
+    assert schema_diffs[0]["classification"] == "BREAKING"
+
+
+@pytest.mark.asyncio
+async def test_validation_errors_are_captured_in_document_store(client: httpx.AsyncClient) -> None:
+    res = await client.post(
+        "/track",
+        json={
+            "service_name": "svc-a",
+            "http_method": "POST",
+            "route_path": "/v1/orders",
+        },
+    )
+    assert res.status_code == 422
+
+    store = app.state.document_store
+    validation_errors = await store.list_validation_errors()
+    assert len(validation_errors) == 1
+    assert validation_errors[0]["kind"] == "validation_error"
+    assert validation_errors[0]["path"] == "/track"

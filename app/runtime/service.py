@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 import uuid
@@ -12,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.runtime.canonical import canonicalize, fingerprint
 from app.runtime.classifier import diff_and_classify, summarize_classification
+from app.runtime.document_store import DocumentStore
 from app.runtime.events import EventPublisher, publish_fire_and_forget
 from app.runtime.metrics import (
     COMPATIBILITY_CLASSIFICATION_TOTAL,
@@ -23,6 +25,16 @@ from app.runtime.models import DriftEvent
 from app.runtime.registry import upsert_schema_version
 from app.runtime.subscriptions import select_affected_subscriptions
 from app.runtime.webhook import deliver_with_retry
+
+
+logger = logging.getLogger(__name__)
+
+
+async def _persist_document(task: str, awaitable: Any) -> None:
+    try:
+        await awaitable
+    except Exception:
+        logger.exception("failed to persist %s document", task)
 
 
 async def _enqueue_webhook_outbox(
@@ -127,10 +139,30 @@ async def track_contract(
     route_path: str,
     payload: dict[str, Any],
     publisher: EventPublisher,
+    document_store: DocumentStore | None = None,
 ) -> dict[str, Any]:
     start = time.perf_counter()
     canonical_schema = canonicalize(payload)
     new_fingerprint = fingerprint(canonical_schema)
+
+    if document_store is not None:
+        await _persist_document(
+            "payload snapshot",
+            document_store.store_payload_snapshot(
+                namespace=namespace,
+                service_name=service_name,
+                http_method=http_method,
+                route_path=route_path,
+                payload=payload,
+                fingerprint=new_fingerprint,
+                classification="SAFE",
+                source="runtime-track",
+                metadata={
+                    "route_path": route_path,
+                    "service_name": service_name,
+                },
+            ),
+        )
 
     endpoint_id, endpoint_name, new_record, inserted = await upsert_schema_version(
         db,
@@ -166,6 +198,26 @@ async def track_contract(
         diff_objs = diff_and_classify(p[2], canonical_schema)
         diffs = [d.__dict__ for d in diff_objs]
         classification = summarize_classification(diff_objs)
+
+        if document_store is not None:
+            await _persist_document(
+                "schema diff",
+                document_store.store_schema_diff(
+                    endpoint_id=endpoint_id,
+                    endpoint_name=endpoint_name,
+                    namespace=namespace,
+                    service_name=service_name,
+                    http_method=http_method,
+                    route_path=route_path,
+                    old_fingerprint=old_fp,
+                    new_fingerprint=new_fingerprint,
+                    old_version=old_version,
+                    new_version=new_record.version,
+                    classification=classification,
+                    diffs=diffs,
+                    source="runtime-track",
+                ),
+            )
 
         await db.execute(
             text(

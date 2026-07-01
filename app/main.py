@@ -5,8 +5,10 @@ import contextlib
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +23,7 @@ from app.core.engine import (
 )
 from app.core.parser import fingerprint_schema, normalize_types, structural_string
 from app.db import close_db, get_db
+from app.runtime.document_store import build_document_store
 from app.runtime.events import build_default_publisher
 from app.runtime.metrics import metrics_payload
 from app.runtime.service import track_contract
@@ -35,6 +38,9 @@ class PayloadSubmission(BaseModel):
     payload: dict[str, Any]
 
 
+document_store = build_document_store()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     stop_event = asyncio.Event()
@@ -47,13 +53,40 @@ async def lifespan(app: FastAPI):
         with contextlib.suppress(asyncio.CancelledError):
             await worker_task
         await close_db()
+        await document_store.aclose()
 
 
 app = FastAPI(title="DriftGate Contract Guard", version="1.0.0", lifespan=lifespan)
+app.state.document_store = document_store
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    store = getattr(request.app.state, "document_store", None)
+    if store is not None:
+        try:
+            raw_body = (await request.body()).decode("utf-8", errors="replace")
+        except Exception:
+            raw_body = ""
+        try:
+            await store.store_validation_error(
+                source="fastapi-validation",
+                path=str(request.url.path),
+                errors=exc.errors(),
+                raw_body=raw_body,
+                metadata={"method": request.method},
+            )
+        except Exception:
+            pass
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 @app.post("/track")
-async def track_payload(submission: PayloadSubmission, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def track_payload(
+    submission: PayloadSubmission,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
     publisher = build_default_publisher()
     result = await track_contract(
         db,
@@ -63,6 +96,7 @@ async def track_payload(submission: PayloadSubmission, db: AsyncSession = Depend
         route_path=submission.route_path,
         payload=submission.payload,
         publisher=publisher,
+        document_store=getattr(request.app.state, "document_store", None),
     )
     await db.commit()
     if submission.namespace.lower().startswith("k6"):
