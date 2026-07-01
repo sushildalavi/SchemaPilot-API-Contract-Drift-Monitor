@@ -1,0 +1,113 @@
+@if (overview$ | async; as overview) {
+  <div class="page">
+    <section class="grid cols-4">
+      <article class="card metric">
+        <span class="meta">Endpoints</span>
+        <strong>{{ overview.metrics.endpoint_count }}</strong>
+        <span>Registered contract surfaces</span>
+      </article>
+      <article class="card metric">
+        <span class="meta">Snapshots</span>
+        <strong>{{ overview.metrics.snapshot_count }}</strong>
+        <span>Observed runtime or monitor samples</span>
+      </article>
+      <article class="card metric">
+        <span class="meta">DLQ</span>
+        <strong>{{ overview.dlq.length }}</strong>
+        <span>Webhook deliveries awaiting recovery</span>
+      </article>
+      <article class="card metric">
+        <span class="meta">Attempts</span>
+        <strong>{{ overview.attempts.length }}</strong>
+        <span>Webhook delivery history</span>
+      </article>
+    </section>
+
+    <section class="grid cols-2">
+      <article class="card">
+        <div class="card-header">
+          <h3>Severity mix</h3>
+          <a class="tag" routerLink="/diffs">Open diff viewer</a>
+        </div>
+        <div class="tag-row">
+          @for (entry of overview.metrics.severity_counts | keyvalue; track entry.key) {
+            <span class="tag" [class.breaking]="entry.key === 'BREAKING'" [class.risky]="entry.key === 'RISKY'">
+              {{ entry.key }} {{ entry.value }}
+            </span>
+          }
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <h3>Latest endpoints</h3>
+          <a class="tag" routerLink="/registry">Schema registry</a>
+        </div>
+        <div class="stack">
+          @for (endpoint of overview.endpoints.slice(0, 5); track trackById($index, endpoint)) {
+            <div class="tag-row">
+              <a class="tag" [routerLink]="['/registry', endpoint.id]">{{ endpoint.name }}</a>
+              <span class="tag">{{ endpoint.method }}</span>
+              <span class="tag">{{ endpoint.provider }}</span>
+              @if (endpoint.latest_snapshot_hash) {
+                <span class="tag mono">{{ endpoint.latest_snapshot_hash.slice(0, 10) }}…</span>
+              }
+            </div>
+          }
+        </div>
+      </article>
+    </section>
+
+    <section class="grid cols-2">
+      <article class="card">
+        <div class="card-header">
+          <h3>Recent drift</h3>
+          <span class="meta">Monitor output</span>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Path</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (diff of overview.diffs.slice(0, 6); track trackById($index, diff)) {
+              <tr>
+                <td><span class="tag" [class.breaking]="diff.severity === 'breaking'" [class.risky]="diff.severity === 'risky'">{{ diff.severity }}</span></td>
+                <td class="mono">{{ diff.path }}</td>
+                <td>{{ diff.message }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <h3>Replay queue</h3>
+          <a class="tag" routerLink="/reliability">DLQ dashboard</a>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Consumer</th>
+              <th>Reason</th>
+              <th>Attempts</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of overview.dlq.slice(0, 6); track trackById($index, entry)) {
+              <tr>
+                <td>{{ entry.consumer_id }}</td>
+                <td>{{ entry.failure_reason }}</td>
+                <td>{{ entry.attempt_count }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </article>
+    </section>
+  </div>
+}

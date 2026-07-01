@@ -1,0 +1,120 @@
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { forkJoin, map, Observable } from 'rxjs';
+
+import {
+  DeliveryAttempt,
+  DiffRecord,
+  DlqEntry,
+  DocumentArtifact,
+  EndpointRecord,
+  MonitorMetrics,
+  ReplayResult,
+  SnapshotRecord,
+  SubscriptionRecord,
+} from './models';
+
+interface OverviewBundle {
+  metrics: MonitorMetrics;
+  endpoints: EndpointRecord[];
+  diffs: DiffRecord[];
+  dlq: DlqEntry[];
+  attempts: DeliveryAttempt[];
+}
+
+@Injectable({ providedIn: 'root' })
+export class ApiService {
+  private readonly monitorBaseUrl = 'http://localhost:8080';
+  private readonly runtimeBaseUrl = 'http://localhost:8018';
+
+  constructor(private readonly http: HttpClient) {}
+
+  getOverview(): Observable<OverviewBundle> {
+    return forkJoin({
+      metrics: this.getMetrics(),
+      endpoints: this.getEndpoints(),
+      diffs: this.getRecentDiffs(),
+      dlq: this.getDlqEntries(),
+      attempts: this.getDeliveryAttempts(),
+    });
+  }
+
+  getMetrics(): Observable<MonitorMetrics> {
+    return this.http.get<MonitorMetrics>(`${this.runtimeBaseUrl}/api/v1/metrics`);
+  }
+
+  getEndpoints(): Observable<EndpointRecord[]> {
+    return this.http.get<EndpointRecord[]>(`${this.monitorBaseUrl}/api/endpoints`);
+  }
+
+  getEndpoint(endpointId: string): Observable<EndpointRecord> {
+    return this.http.get<EndpointRecord>(`${this.monitorBaseUrl}/api/endpoints/${endpointId}`);
+  }
+
+  getEndpointSnapshots(endpointId: string): Observable<SnapshotRecord[]> {
+    return this.http.get<SnapshotRecord[]>(`${this.monitorBaseUrl}/api/endpoints/${endpointId}/snapshots`);
+  }
+
+  getEndpointDiffs(endpointId: string): Observable<DiffRecord[]> {
+    return this.http.get<DiffRecord[]>(`${this.monitorBaseUrl}/api/endpoints/${endpointId}/diffs`);
+  }
+
+  getRecentDiffs(limit = 40): Observable<DiffRecord[]> {
+    return this.http.get<DiffRecord[]>(`${this.monitorBaseUrl}/api/diffs/recent`, {
+      params: { limit },
+    });
+  }
+
+  getSubscriptions(): Observable<SubscriptionRecord[]> {
+    return this.http.get<SubscriptionRecord[]>(`${this.runtimeBaseUrl}/api/v1/subscriptions`);
+  }
+
+  getDlqEntries(): Observable<DlqEntry[]> {
+    return this.http.get<DlqEntry[]>(`${this.runtimeBaseUrl}/api/v1/webhook-dlq`);
+  }
+
+  getDeliveryAttempts(): Observable<DeliveryAttempt[]> {
+    return this.http.get<DeliveryAttempt[]>(`${this.runtimeBaseUrl}/api/v1/webhook-delivery-attempts`);
+  }
+
+  getPayloadSnapshots(): Observable<DocumentArtifact[]> {
+    return this.http.get<DocumentArtifact[]>(`${this.runtimeBaseUrl}/api/v1/documents/payload-snapshots`);
+  }
+
+  getSchemaDiffDocuments(): Observable<DocumentArtifact[]> {
+    return this.http.get<DocumentArtifact[]>(`${this.runtimeBaseUrl}/api/v1/documents/schema-diffs`);
+  }
+
+  getValidationErrors(): Observable<DocumentArtifact[]> {
+    return this.http.get<DocumentArtifact[]>(`${this.runtimeBaseUrl}/api/v1/documents/validation-errors`);
+  }
+
+  getReplayArtifacts(): Observable<DocumentArtifact[]> {
+    return this.http.get<DocumentArtifact[]>(`${this.runtimeBaseUrl}/api/v1/documents/replay-artifacts`);
+  }
+
+  replayDlqEntry(dlqId: string): Observable<ReplayResult> {
+    return this.http.post<ReplayResult>(`${this.runtimeBaseUrl}/api/v1/webhook-dlq/${dlqId}/replay`, {});
+  }
+
+  getRegistryOverview(): Observable<{ endpoints: EndpointRecord[]; subscriptions: SubscriptionRecord[] }> {
+    return forkJoin({
+      endpoints: this.getEndpoints(),
+      subscriptions: this.getSubscriptions(),
+    });
+  }
+
+  getEndpointDetail(endpointId: string): Observable<{
+    endpoint: EndpointRecord;
+    snapshots: SnapshotRecord[];
+    diffs: DiffRecord[];
+    subscriptions: SubscriptionRecord[];
+  }> {
+    return forkJoin({
+      endpoint: this.getEndpoint(endpointId),
+      snapshots: this.getEndpointSnapshots(endpointId),
+      diffs: this.getEndpointDiffs(endpointId),
+      subscriptions: this.getSubscriptions(),
+    });
+  }
+}

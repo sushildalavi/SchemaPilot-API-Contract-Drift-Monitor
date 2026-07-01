@@ -1,0 +1,63 @@
+@if (registry$ | async; as registry) {
+  <div class="page">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3>Schema registry</h3>
+          <p>Route-level contract registry and service ownership.</p>
+        </div>
+        <span class="tag">{{ registry.endpoints.length }} endpoints</span>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Endpoint</th>
+            <th>Method</th>
+            <th>Provider</th>
+            <th>Latest snapshot</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (endpoint of registry.endpoints; track trackById($index, endpoint)) {
+            <tr>
+              <td>
+                <a class="mono" [routerLink]="['/registry', endpoint.id]">{{ endpoint.name }}</a>
+                <div class="meta">{{ endpoint.url }}</div>
+              </td>
+              <td>{{ endpoint.method }}</td>
+              <td>{{ endpoint.provider }}</td>
+              <td class="mono">{{ endpoint.latest_snapshot_hash ?? 'pending' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3>Service ownership</h3>
+          <p>Webhook consumers and delivery thresholds.</p>
+        </div>
+        <span class="tag">{{ registry.subscriptions.length }} subscriptions</span>
+      </div>
+
+      <div class="grid cols-2">
+        @for (sub of registry.subscriptions; track trackById($index, sub)) {
+          <div class="card">
+            <div class="card-header">
+              <h4>{{ sub.consumer_id }}</h4>
+              <span class="tag" [class.safe]="sub.active">{{ sub.active ? 'active' : 'inactive' }}</span>
+            </div>
+            <p class="mono">{{ sub.target_url }}</p>
+            <div class="tag-row">
+              <span class="tag">{{ sub.severity_threshold }}</span>
+              <span class="tag">schema v{{ sub.schema_version ?? 'any' }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  </div>
+}

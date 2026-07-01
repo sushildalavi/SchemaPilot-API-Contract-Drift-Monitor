@@ -1,0 +1,72 @@
+@if (detail$ | async; as detail) {
+  <div class="page">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3>{{ detail.endpoint.name }}</h3>
+          <p>Schema versions, snapshots, and drift history.</p>
+        </div>
+        <a class="tag" routerLink="/registry">Back to registry</a>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag">{{ detail.endpoint.method }}</span>
+        <span class="tag">{{ detail.endpoint.provider }}</span>
+        <span class="tag">{{ detail.endpoint.is_active ? 'active' : 'inactive' }}</span>
+        <span class="tag mono">{{ detail.endpoint.url }}</span>
+      </div>
+    </section>
+
+    <section class="grid cols-2">
+      <article class="card">
+        <div class="card-header">
+          <h4>Snapshots</h4>
+          <span class="tag">{{ detail.snapshots.length }}</span>
+        </div>
+        <div class="stack">
+          @for (snapshot of detail.snapshots; track trackById($index, snapshot)) {
+            <div class="codebox">
+              <div class="tag-row">
+                <span class="tag mono">{{ snapshot.schema_hash.slice(0, 12) }}…</span>
+                <span class="tag">{{ snapshot.status_code }}</span>
+                <span class="tag">{{ snapshot.response_time_ms }} ms</span>
+              </div>
+              <pre class="mono">{{ snapshot.normalized_schema_json | json }}</pre>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <h4>Breaking-change review</h4>
+          <span class="tag">{{ detail.diffs.length }}</span>
+        </div>
+        <div class="stack">
+          @for (diff of detail.diffs; track trackById($index, diff)) {
+            <div class="card">
+              <div class="tag-row">
+                <span class="tag" [class.breaking]="diff.severity === 'breaking'" [class.risky]="diff.severity === 'risky'">{{ diff.severity }}</span>
+                <span class="tag mono">{{ diff.change_type }}</span>
+                <span class="tag mono">{{ diff.path }}</span>
+              </div>
+              <p>{{ diff.message }}</p>
+            </div>
+          }
+        </div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h4>Service ownership</h4>
+        <span class="tag">{{ detail.subscriptions.length }}</span>
+      </div>
+      <div class="tag-row">
+        @for (sub of detail.subscriptions; track trackById($index, sub)) {
+          <span class="tag">{{ sub.consumer_id }} · {{ sub.severity_threshold }}</span>
+        }
+      </div>
+    </section>
+  </div>
+}

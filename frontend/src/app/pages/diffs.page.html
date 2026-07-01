@@ -1,0 +1,34 @@
+@if (diffs$ | async; as diffs) {
+  <div class="page">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3>Schema drift diff viewer</h3>
+          <p>Recent diffs across monitor and runtime sources.</p>
+        </div>
+        <span class="tag">{{ diffs.length }}</span>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Change</th>
+            <th>Path</th>
+            <th>Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (diff of diffs; track diff.id) {
+            <tr>
+              <td><span class="tag" [class.breaking]="diff.severity === 'breaking'" [class.risky]="diff.severity === 'risky'">{{ diff.severity }}</span></td>
+              <td>{{ diff.change_type }}</td>
+              <td class="mono">{{ diff.path }}</td>
+              <td>{{ diff.message }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  </div>
+}

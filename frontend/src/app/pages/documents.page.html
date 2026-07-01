@@ -1,0 +1,97 @@
+<div class="page">
+  <section class="grid cols-2">
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3>Payload snapshots</h3>
+          <p>Raw samples stored in the document store.</p>
+        </div>
+        <span class="tag">Mongo / Cosmos</span>
+      </div>
+      @if (payloads$ | async; as payloads) {
+        <div class="stack">
+          @for (payload of payloads; track payload.document_id) {
+            <div class="codebox">
+              <div class="tag-row">
+                <span class="tag mono">{{ payload.document_id.slice(0, 10) }}…</span>
+                <span class="tag">{{ payload.source }}</span>
+              </div>
+              <pre class="mono">{{ payload.payload | json }}</pre>
+            </div>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3>Validation failures</h3>
+          <p>FastAPI request validation capture.</p>
+        </div>
+        <span class="tag">Drilldown</span>
+      </div>
+      @if (validations$ | async; as validations) {
+        <div class="stack">
+          @for (entry of validations; track entry.document_id) {
+            <div class="card">
+              <div class="tag-row">
+                <span class="tag">{{ entry.path }}</span>
+                <span class="tag">{{ entry.source }}</span>
+              </div>
+              <pre class="mono">{{ entry.errors | json }}</pre>
+            </div>
+          }
+        </div>
+      }
+    </article>
+  </section>
+
+  <section class="grid cols-2">
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3>Nested schema diffs</h3>
+          <p>Stored alongside validation artifacts for replay review.</p>
+        </div>
+        <span class="tag">Diffs</span>
+      </div>
+      @if (diffs$ | async; as diffs) {
+        <div class="stack">
+          @for (entry of diffs; track entry.document_id) {
+            <div class="card">
+              <div class="tag-row">
+                <span class="tag">{{ entry.classification }}</span>
+                <span class="tag mono">{{ entry.endpoint_name }}</span>
+              </div>
+              <pre class="mono">{{ entry.diffs | json }}</pre>
+            </div>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3>Replay artifacts</h3>
+          <p>Artifact trail for DLQ recovery and revalidation.</p>
+        </div>
+        <span class="tag">Artifacts</span>
+      </div>
+      @if (replayArtifacts$ | async; as artifacts) {
+        <div class="stack">
+          @for (entry of artifacts; track entry.document_id) {
+            <div class="card">
+              <div class="tag-row">
+                <span class="tag">{{ entry.artifact_type }}</span>
+                <span class="tag">{{ entry.source }}</span>
+              </div>
+              <pre class="mono">{{ entry.payload | json }}</pre>
+            </div>
+          }
+        </div>
+      }
+    </article>
+  </section>
+</div>

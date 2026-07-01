@@ -1,18 +1,19 @@
-FROM node:20-alpine AS builder
-
-ARG VITE_API_BASE_URL
-ARG VITE_ADMIN_SECRET
-
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_ADMIN_SECRET=$VITE_ADMIN_SECRET
+FROM node:20-alpine AS build
 
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm ci
-COPY . .
+
+COPY angular.json tsconfig*.json ./
+COPY src ./src
+COPY public ./public
+
 RUN npm run build
 
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
+FROM nginx:1.27-alpine
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 5173
+COPY --from=build /app/dist/driftgate-angular/browser /usr/share/nginx/html
+
+EXPOSE 80
