@@ -92,6 +92,15 @@ class DocumentStore(Protocol):
     async def list_payload_snapshots(self, limit: int = 50) -> list[dict[str, Any]]:
         ...
 
+    async def list_schema_diffs(self, limit: int = 50) -> list[dict[str, Any]]:
+        ...
+
+    async def list_validation_errors(self, limit: int = 50) -> list[dict[str, Any]]:
+        ...
+
+    async def list_replay_artifacts(self, limit: int = 50) -> list[dict[str, Any]]:
+        ...
+
     async def aclose(self) -> None:
         ...
 
@@ -228,6 +237,15 @@ class InMemoryDocumentStore:
 
     async def list_payload_snapshots(self, limit: int = 50) -> list[dict[str, Any]]:
         return self._list("payload_snapshots", limit)
+
+    async def list_schema_diffs(self, limit: int = 50) -> list[dict[str, Any]]:
+        return self._list("schema_diffs", limit)
+
+    async def list_validation_errors(self, limit: int = 50) -> list[dict[str, Any]]:
+        return self._list("validation_errors", limit)
+
+    async def list_replay_artifacts(self, limit: int = 50) -> list[dict[str, Any]]:
+        return self._list("replay_artifacts", limit)
 
     async def aclose(self) -> None:
         return None
@@ -374,6 +392,15 @@ class MongoDocumentStore:
 
     async def list_payload_snapshots(self, limit: int = 50) -> list[dict[str, Any]]:
         return await self._list("payload_snapshots", limit)
+
+    async def list_schema_diffs(self, limit: int = 50) -> list[dict[str, Any]]:
+        return await self._list("schema_diffs", limit)
+
+    async def list_validation_errors(self, limit: int = 50) -> list[dict[str, Any]]:
+        return await self._list("validation_errors", limit)
+
+    async def list_replay_artifacts(self, limit: int = 50) -> list[dict[str, Any]]:
+        return await self._list("replay_artifacts", limit)
 
     async def aclose(self) -> None:
         close = getattr(self._client, "close", None)
